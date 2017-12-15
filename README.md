@@ -3,7 +3,7 @@
 ## Welcom to chadwick open source technology blog!
 <br />
 
->****<font color=#B22222>Linux基础命令****</font>
+>****Linux基础命令****
 
 - iostat命令
 
@@ -12,6 +12,6 @@
     
   
 
->****<font color=#B22222>Python编程语言****</font>
+>****Python编程语言****
 
->****<font color=#B22222>MySQL****</font>
+>****MySQL****
