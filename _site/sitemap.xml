@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url>
+<loc>http://0.0.0.0:4000/2016/10/12/centos-7-system.html</loc>
+<lastmod>2016-10-12T00:00:00+08:00</lastmod>
+</url>
+<url>
+<loc>http://0.0.0.0:4000/2016/10/13/CentOS.html</loc>
+<lastmod>2016-10-13T00:00:00+08:00</lastmod>
+</url>
+<url>
+<loc>http://0.0.0.0:4000/2017/12/17/zabbix-yum-install.html</loc>
+<lastmod>2017-12-17T00:00:00+08:00</lastmod>
+</url>
+<url>
+<loc>http://0.0.0.0:4000/2017/12/18/Github.html</loc>
+<lastmod>2017-12-18T00:00:00+08:00</lastmod>
+</url>
+<url>
+<loc>http://0.0.0.0:4000/2017/12/19/Cobbler.html</loc>
+<lastmod>2017-12-19T00:00:00+08:00</lastmod>
+</url>
+<url>
+<loc>http://0.0.0.0:4000/about.html</loc>
+</url>
+<url>
+<loc>http://0.0.0.0:4000/all.html</loc>
+</url>
+<url>
+<loc>http://0.0.0.0:4000/</loc>
+</url>
+</urlset>

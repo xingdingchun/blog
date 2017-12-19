@@ -1,0 +1,1255 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="zh"><generator uri="https://jekyllrb.com/" version="3.6.2">Jekyll</generator><link href="http://0.0.0.0:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://0.0.0.0:4000/" rel="alternate" type="text/html" hreflang="zh" /><updated>2017-12-19T16:18:37+08:00</updated><id>http://0.0.0.0:4000/</id><title type="html">Maihill’s blog</title><subtitle>Maihill's Blog
+</subtitle><author><name>chadwick</name><email>849231609@qq.com</email></author><entry><title type="html">Cobbler</title><link href="http://0.0.0.0:4000/2017/12/19/Cobbler.html" rel="alternate" type="text/html" title="Cobbler" /><published>2017-12-19T00:00:00+08:00</published><updated>2017-12-19T00:00:00+08:00</updated><id>http://0.0.0.0:4000/2017/12/19/Cobbler</id><content type="html" xml:base="http://0.0.0.0:4000/2017/12/19/Cobbler.html">&lt;p&gt;##Cobbler功能介绍
+使用一个以前定义的模板来配置DHCP服务（如果启动了管理DHCP）将一个存储库（yum或rsync）建立镜像或解压缩一个媒介，以注册一个新操作系统。
+在DHCP配置文件中为需要安装的机器创建一个条目，并使用你制定的参数（IP和MAC地址）
+在TFTP服务目录下创建试单的pex文件
+重新启动DHCP服务
+重新启动机器开始安装（若果电源管理已启用）
+##Cobbler安装
+安装第三方yum源：阿里云epel源&lt;/p&gt;
+&lt;pre&gt;
+rpm -ivh http://mirrors.aliyun.com/epel/epel-release-latest-7.noarch.rpm
+cd /etc/yum.repos.d/
+ls
+cat epel.repo
+&lt;/pre&gt;
+&lt;p&gt;安装Cobbler和需要的软件&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ~]# yum install httpd dhcp tftp cobbler cobbler-web pykickstart -y
+&lt;/pre&gt;
+&lt;p&gt;查看安装完成后的httpd配置文件变化：&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ~]# cd /etc/httpd/conf.d/
+[root@linux-node01 conf.d]# ls
+autoindex.conf  **cobbler_web.conf**  ssl.conf      welcome.conf
+**cobbler.conf**    README            userdir.conf
+&lt;/pre&gt;
+&lt;p&gt;查看Cobbler配置文件&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 conf.d]# cat cobbler.conf 
+# This configuration file allows cobbler data
+# to be accessed over HTTP.
+
+AliasMatch ^/cblr(?!/svc/)(.*)?$ &quot;/var/www/cobbler$1&quot;
+AliasMatch ^/cobbler_track(.*)?$ &quot;/var/www/cobbler$1&quot;
+#AliasMatch ^/cobbler(.*)?$ &quot;/var/www/cobbler$1&quot;
+Alias /cobbler /var/www/cobbler
+Alias /cobbler_webui_content /var/www/cobbler_webui_content
+
+WSGIScriptAliasMatch ^/cblr/svc/([^/]*) /var/www/cobbler/svc/services.py
+
+&amp;lt;Directory &quot;/var/www/cobbler&quot;&amp;gt;
+    SetEnv VIRTUALENV 
+    Options Indexes FollowSymLinks
+    Order allow,deny
+    Allow from all
+&amp;lt;/Directory&amp;gt;
+
+ProxyRequests off
+**
+ProxyPass /cobbler_api http://localhost:25151/
+ProxyPassReverse /cobbler_api http://localhost:25151/
+**
+BrowserMatch &quot;MSIE&quot; AuthDigestEnableQueryStringHack=On
+
+# the webui is now part of the &quot;cobbler-web&quot; package
+# and is visited at http://.../cobbler_web not this URL.
+# this is only a pointer to the new page.
+
+&amp;lt;Directory &quot;/var/www/cobbler/web/&quot;&amp;gt;
+    Options Indexes FollowSymLinks
+    Order allow,deny
+    Allow from all
+&amp;lt;/Directory&amp;gt;
+
+&lt;IfVersion&gt;= 2.4&amp;gt;
+    &amp;lt;Location /cblr&amp;gt;
+	Require all granted
+    &amp;lt;/Location&amp;gt;
+&lt;/IfVersion&gt;
+&lt;/pre&gt;
+&lt;p&gt;启动httpd服务&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 conf.d]# systemctl start httpd
+&lt;/pre&gt;
+&lt;p&gt;启动Cobbler服务&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 conf.d]# systemctl start cobblerd
+&lt;/pre&gt;
+&lt;p&gt;查看Cobbler需要配置的内容（相当于帮助文件）根据步骤配置&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 conf.d]# cobbler check
+The following are potential configuration items that you may want to fix:
+
+1 : The 'server' field in /etc/cobbler/settings must be set to something other than localhost, or kickstarting features will not work.  This should be a resolvable hostname or IP for the boot server as reachable by all machines that will use it.
+2 : For PXE to be functional, the 'next_server' field in /etc/cobbler/settings must be set to something other than 127.0.0.1, and should match the IP of the boot server on the PXE network.
+3 : change 'disable' to 'no' in /etc/xinetd.d/tftp
+4 : some network boot-loaders are missing from /var/lib/cobbler/loaders, you may run 'cobbler get-loaders' to download them, or, if you only want to handle x86/x86_64 netbooting, you may ensure that you have installed a *recent* version of the syslinux package installed and can ignore this message entirely.  Files in this directory, should you want to support all architectures, should include pxelinux.0, menu.c32, elilo.efi, and yaboot. The 'cobbler get-loaders' command is the easiest way to resolve these requirements.
+5 : enable and start rsyncd.service with systemctl
+6 : debmirror package is not installed, it will be required to manage debian deployments and repositories
+7 : The default password used by the sample templates for newly installed machines (default_password_crypted in /etc/cobbler/settings) is still set to 'cobbler' and should be changed, try: &quot;openssl passwd -1 -salt 'random-phrase-here' 'your-password-here'&quot; to generate new one
+8 : fencing tools were not found, and are required to use the (optional) power management features. install cman or fence-agents to use them
+&lt;/pre&gt;
+&lt;p&gt;1.Cobbler配置文件修改server,next_server(/etc/cobbler/settings)&lt;/p&gt;
+&lt;pre&gt;
+vim /etc/cobbler/settings
+272 next_server: 192.168.56.11
+384 server: 192.168.56.11
+&lt;/pre&gt;
+&lt;p&gt;2.配置TFTP服务(/etc/xinetd.d/tftp)&lt;/p&gt;
+&lt;pre&gt;
+vim /etc/xinetd.d/tftp
+disable              = no
+&lt;/pre&gt;
+&lt;p&gt;3.启动rsync服务&lt;/p&gt;
+&lt;pre&gt;
+systemctl start rsyncd
+systemctl status rsyncd
+[root@linux-node01 ~]# systemctl enable rsyncd.service
+Created symlink from /etc/systemd/system/multi-user.target.wants/rsyncd.service to /usr/lib/systemd/system/rsyncd.service.
+&lt;/pre&gt;
+&lt;p&gt;4.下载必须安装的东西，执行下列命令：&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 conf.d]# cobbler get-loaders
+执行如果报错问题，尝试重启httpd服务，可以解决。
+[root@linux-node01 conf.d]# cobbler get-loaders
+task started: 2016-11-28_044112_get_loaders
+task started (id=Download Bootloader Content, time=Mon Nov 28 04:41:12 2016)
+path /var/lib/cobbler/loaders/README already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/COPYING.elilo already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/COPYING.yaboot already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/COPYING.syslinux already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/elilo-ia64.efi already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/yaboot already exists, not overwriting existing content, use --force if you wish to update
+downloading http://cobbler.github.io/loaders/pxelinux.0-3.86 to /var/lib/cobbler/loaders/pxelinux.0
+Exception occured: &amp;lt;class 'urlgrabber.grabber.URLGrabError'&amp;gt;
+Exception value: [Errno 14] curl#56 - &quot;Recv failure: Connection reset by peer&quot;
+Exception Info:
+  File &quot;/usr/lib/python2.7/site-packages/cobbler/remote.py&quot;, line 87, in run
+    rc = self._run(self)
+   File &quot;/usr/lib/python2.7/site-packages/cobbler/remote.py&quot;, line 181, in runner
+    return self.remote.api.dlcontent(self.options.get(&quot;force&quot;,False), self.logger)
+   File &quot;/usr/lib/python2.7/site-packages/cobbler/api.py&quot;, line 751, in dlcontent
+    return grabber.run(force)
+   File &quot;/usr/lib/python2.7/site-packages/cobbler/action_dlcontent.py&quot;, line 73, in run
+    urlgrabber.grabber.urlgrab(src, filename=dst, proxies=proxies)
+   File &quot;/usr/lib/python2.7/site-packages/urlgrabber/grabber.py&quot;, line 735, in urlgrab
+    return default_grabber.urlgrab(url, filename, **kwargs)
+   File &quot;/usr/lib/python2.7/site-packages/urlgrabber/grabber.py&quot;, line 1176, in urlgrab
+    return _run_callback(opts.failfunc, opts)
+   File &quot;/usr/lib/python2.7/site-packages/urlgrabber/grabber.py&quot;, line 1030, in _run_callback
+    return cb(obj)
+   File &quot;/usr/lib/python2.7/site-packages/urlgrabber/grabber.py&quot;, line 1024, in _do_raise
+    raise obj.exception
+
+!!! TASK FAILED !!!
+解决报错后执行命令正常，成功
+[root@linux-node01 conf.d]# cobbler get-loaders
+task started: 2016-11-28_052442_get_loaders
+task started (id=Download Bootloader Content, time=Mon Nov 28 05:24:42 2016)
+path /var/lib/cobbler/loaders/README already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/COPYING.elilo already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/COPYING.yaboot already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/COPYING.syslinux already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/elilo-ia64.efi already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/yaboot already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/pxelinux.0 already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/menu.c32 already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/grub-x86.efi already exists, not overwriting existing content, use --force if you wish to update
+path /var/lib/cobbler/loaders/grub-x86_64.efi already exists, not overwriting existing content, use --force if you wish to update
+*** TASK COMPLETE ***
+
+&lt;/pre&gt;
+&lt;p&gt;5.生成随机密码与配置密码&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ~]# openssl passwd -1 -salt 'cobbler' 'cobbler'
+$1$cobbler$M6SE55xZodWc9.vAKLJs6.
+vim /etc/cobbler/settings
+default_password_crypted: &quot;$1$cobb$M6SE55xZodWc9.vAKLJs6.&quot;
+&lt;/pre&gt;
+&lt;p&gt;6.剩下的两个项目可以忽略掉：
+电源管理：实际工作中可以使用，使用的很少
+debmirror包未安装，主要针对的是Ubuntu系统，如果需要批量安装Ubuntu系统，需要安装这个包。&lt;/p&gt;
+
+&lt;p&gt;7.Cobbler 管理DHCP服务&lt;/p&gt;
+
+&lt;p&gt;修改Cobbler配置文件/etc/cobbler/settings，使Cobbler可以管理DHCP服务&lt;/p&gt;
+&lt;pre&gt;
+vim /etc/cobbler/settings
+manage_dhcp = 0 改为
+manage_dhcp = 1
+&lt;/pre&gt;
+&lt;p&gt;修改Cobbler管理DHCP文件&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 conf.d]# cd /etc/cobbler/
+[root@linux-node01 cobbler]# ls
+auth.conf               iso             reporting           users.digest
+cheetah_macros          ldap            rsync.exclude       version
+cobbler_bash            modules.conf    rsync.template      zone.template
+completions             mongodb.conf    secondary.template  zone_templates
+dhcp.template           named.template  settings
+dnsmasq.template        power           tftpd.template
+import_rsync_whitelist  pxe             users.conf
+[root@linux-node01 cobbler]# cat dhcp.template 
+# ******************************************************************
+# Cobbler managed dhcpd.conf file
+#
+# generated from cobbler dhcp.conf template ($date)
+# Do NOT make changes to /etc/dhcpd.conf. Instead, make your changes
+# in /etc/cobbler/dhcp.template, as /etc/dhcpd.conf will be
+# overwritten.
+#
+# ******************************************************************
+
+ddns-update-style interim;
+
+allow booting;
+allow bootp;
+
+ignore client-updates;
+set vendorclass = option vendor-class-identifier;
+
+option pxe-system-type code 93 = unsigned integer 16;
+
+subnet 192.168.56.0 netmask 255.255.255.0 {
+     option routers             192.168.56.2;
+     option domain-name-servers 192.168.56.2;
+     option subnet-mask         255.255.255.0;
+     range dynamic-bootp        192.168.56.100 192.168.56.254;
+     default-lease-time         21600;
+     max-lease-time             43200;
+     next-server                $next_server;
+     class &quot;pxeclients&quot; {
+          match if substring (option vendor-class-identifier, 0, 9) = &quot;PXEClient&quot;;
+          if option pxe-system-type = 00:02 {
+                  filename &quot;ia64/elilo.efi&quot;;
+          } else if option pxe-system-type = 00:06 {
+                  filename &quot;grub/grub-x86.efi&quot;;
+          } else if option pxe-system-type = 00:07 {
+                  filename &quot;grub/grub-x86_64.efi&quot;;
+          } else {
+                  filename &quot;pxelinux.0&quot;;
+          }
+     }
+
+}
+
+#for dhcp_tag in $dhcp_tags.keys():
+    ## group could be subnet if your dhcp tags line up with your subnets
+    ## or really any valid dhcpd.conf construct ... if you only use the
+    ## default dhcp tag in cobbler, the group block can be deleted for a
+    ## flat configuration
+# group for Cobbler DHCP tag: $dhcp_tag
+group {
+        #for mac in $dhcp_tags[$dhcp_tag].keys():
+            #set iface = $dhcp_tags[$dhcp_tag][$mac]
+    host $iface.name {
+        hardware ethernet $mac;
+        #if $iface.ip_address:
+        fixed-address $iface.ip_address;
+        #end if
+        #if $iface.hostname:
+        option host-name &quot;$iface.hostname&quot;;
+        #end if
+        #if $iface.netmask:
+        option subnet-mask $iface.netmask;
+        #end if
+        #if $iface.gateway:
+        option routers $iface.gateway;
+        #end if
+        #if $iface.enable_gpxe:
+        if exists user-class and option user-class = &quot;gPXE&quot; {
+            filename &quot;http://$cobbler_server/cblr/svc/op/gpxe/system/$iface.owner&quot;;
+        } else if exists user-class and option user-class = &quot;iPXE&quot; {
+            filename &quot;http://$cobbler_server/cblr/svc/op/gpxe/system/$iface.owner&quot;;
+        } else {
+            filename &quot;undionly.kpxe&quot;;
+        }
+        #else
+        filename &quot;$iface.filename&quot;;
+        #end if
+        ## Cobbler defaults to $next_server, but some users
+        ## may like to use $iface.system.server for proxied setups
+        next-server $next_server;
+        ## next-server $iface.next_server;
+    }
+        #end for
+}
+#end for
+&lt;/pre&gt;
+&lt;p&gt;重启Cobbler服务和生成配置文件&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 cobbler]# systemctl restart cobblerd
+[root@linux-node01 cobbler]# cobbler sync
+&lt;/pre&gt;
+&lt;p&gt;自动生成DHCP配置文件&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;dhcp配置文件错误，会导致DHCP启动错误，甚至会导致cobbler sync命令执行错误。&lt;/strong&gt;
+##挂在光盘导入镜像&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 cobbler]# mount /dev/cdrom /mnt
+mount: /dev/sr0 is write-protected, mounting read-only
+[root@linux-node01 cobbler]# cd /mnt/
+[root@linux-node01 mnt]# ls
+CentOS_BuildTag  GPL       LiveOS    RPM-GPG-KEY-CentOS-7
+EFI              images    Packages  RPM-GPG-KEY-CentOS-Testing-7
+EULA             isolinux  repodata  TRANS.TBL
+&lt;/pre&gt;
+&lt;p&gt;##Cobbler导入镜像&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 mnt]# cobbler import --path=/mnt/ --name=CentOS-7-x86_64 --arch=x86_64
+task started: 2016-11-28_054534_import
+task started (id=Media import, time=Mon Nov 28 05:45:34 2016)
+......
+
+&lt;/pre&gt;
+&lt;p&gt;##Cobbler镜像文件所方位置&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ~]# cd /var/www/cobbler/ks_mirror/
+[root@linux-node01 ks_mirror]# ls
+CentOS-6.7-x86_64  CentOS-7-x86_64  config
+&lt;/pre&gt;
+&lt;p&gt;##Cobbler自带的命令集&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ks_mirror]# cobbler profile
+usage
+=====
+cobbler profile add
+cobbler profile copy
+cobbler profile dumpvars
+cobbler profile edit
+cobbler profile find
+cobbler profile getks
+cobbler profile list
+cobbler profile remove
+cobbler profile rename
+cobbler profile report
+[root@linux-node01 ~]# cobbler profile list
+   CentOS-6.7-x86_64
+   CentOS-7-x86_64
+&lt;/pre&gt;
+&lt;p&gt;##查看Cobbler配置情况&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 kickstarts]# cobbler profile report
+Name                           : CentOS-6.7-x86_64
+TFTP Boot Files                : {}
+Comment                        : 
+DHCP Tag                       : default
+Distribution                   : CentOS-6.7-x86_64
+Enable gPXE?                   : 0
+Enable PXE Menu?               : 1
+Fetchable Files                : {}
+Kernel Options                 : {}
+Kernel Options (Post Install)  : {}
+Kickstart                      : /var/lib/cobbler/kickstarts/sample_end.ks   
+###**默认情况下自动给你指定了kickstarts文件**
+Kickstart Metadata             : {}
+Management Classes             : []
+Management Parameters          : &amp;lt;&lt;inherit&gt;&amp;gt;
+Name Servers                   : []
+Name Servers Search Path       : []
+Owners                         : ['admin']
+Parent Profile                 : 
+Internal proxy                 : 
+Red Hat Management Key         : &amp;lt;&lt;inherit&gt;&amp;gt;
+Red Hat Management Server      : &amp;lt;&lt;inherit&gt;&amp;gt;
+Repos                          : []
+Server Override                : &amp;lt;&lt;inherit&gt;&amp;gt;
+Template Files                 : {}
+Virt Auto Boot                 : 1
+Virt Bridge                    : xenbr0
+Virt CPUs                      : 1
+Virt Disk Driver Type          : raw
+Virt File Size(GB)             : 5
+Virt Path                      : 
+Virt RAM (MB)                  : 512
+Virt Type                      : kvm
+
+Name                           : CentOS-7-x86_64
+TFTP Boot Files                : {}
+Comment                        : 
+DHCP Tag                       : default
+Distribution                   : CentOS-7-x86_64
+Enable gPXE?                   : 0
+Enable PXE Menu?               : 1
+Fetchable Files                : {}
+Kernel Options                 : {}
+###**指定内核添加信息**
+Kernel Options (Post Install)  : {}
+Kickstart                      : /var/lib/cobbler/kickstarts/sample_end.ks
+###**默认情况下自动给你指定了kickstarts文件**
+Kickstart Metadata             : {}
+Management Classes             : []
+Management Parameters          : &amp;lt;&lt;inherit&gt;&amp;gt;
+Name Servers                   : []
+Name Servers Search Path       : []
+Owners                         : ['admin']
+Parent Profile                 : 
+Internal proxy                 : 
+Red Hat Management Key         : &amp;lt;&lt;inherit&gt;&amp;gt;
+Red Hat Management Server      : &amp;lt;&lt;inherit&gt;&amp;gt;
+Repos                          : []
+Server Override                : &amp;lt;&lt;inherit&gt;&amp;gt;
+Template Files                 : {}
+Virt Auto Boot                 : 1
+Virt Bridge                    : xenbr0
+Virt CPUs                      : 1
+Virt Disk Driver Type          : raw
+Virt File Size(GB)             : 5
+Virt Path                      : 
+Virt RAM (MB)                  : 512
+Virt Type                      : kvm
+&amp;lt;/pre&amp;gt;
+##Cobbler默认kickstart文件路径
+&lt;pre&gt;
+[root@linux-node01 kickstarts]# cd /var/lib/cobbler/kickstarts/
+[root@linux-node01 kickstarts]# ls
+CentOS-6.7-x86_64.cfg  esxi5-ks.cfg      sample_autoyast.xml  sample_esxi5.ks
+CentOS-7-x86_64.cfg    install_profiles  sample_end.ks        sample.ks
+default.ks             legacy.ks         sample_esx4.ks       sample_old.seed
+esxi4-ks.cfg           pxerescue.ks      sample_esxi4.ks      sample.seed
+&lt;/pre&gt;
+##上传CentOS7和CentOS6两个不同版本的kickstart文件到如下路劲
+&lt;pre&gt;
+/var/lib/cobbler/kickstarts/
+&lt;/pre&gt;
+##编辑Cobbler配置文件，调整kickstart文件路径
+&lt;pre&gt;
+[root@linux-node01 kickstarts]# cobbler profile edit --name=CentOS-7-x86_64 --kickstart=/var/lib/cobbler/kickstarts/CentOS-7-x86_64.cfg
+[root@linux-node01 kickstarts]# cobbler profile edit --name=CentOS-6.7-x86_64 --kickstart=/var/lib/cobbler/kickstarts/CentOS-6.7-x86_64.cfg
+&lt;/pre&gt;
+##CentOS-7网卡配置修改内核参数
+&lt;pre&gt;
+[root@linux-node01 kickstarts]# cobbler profile edit --name=CentOS-7-x86_64 --kopts='net.ifnames=0 biosdevname=0'
+&lt;/pre&gt;
+##编辑修改后查看添加的内容
+&lt;pre&gt;
+[root@linux-node01 kickstarts]# cobbler profile report
+Name                           : CentOS-6.7-x86_64
+TFTP Boot Files                : {}
+Comment                        : 
+DHCP Tag                       : default
+Distribution                   : CentOS-6.7-x86_64
+Enable gPXE?                   : 0
+Enable PXE Menu?               : 1
+Fetchable Files                : {}
+Kernel Options                 : {}
+Kernel Options (Post Install)  : {}
+Kickstart                      : /var/lib/cobbler/kickstarts/CentOS-6.7-x86_64.cfg
+Kickstart Metadata             : {}
+Management Classes             : []
+Management Parameters          : &amp;lt;&lt;inherit&gt;&amp;gt;
+Name Servers                   : []
+Name Servers Search Path       : []
+Owners                         : ['admin']
+Parent Profile                 : 
+Internal proxy                 : 
+Red Hat Management Key         : &amp;lt;&lt;inherit&gt;&amp;gt;
+Red Hat Management Server      : &amp;lt;&lt;inherit&gt;&amp;gt;
+Repos                          : []
+Server Override                : &amp;lt;&lt;inherit&gt;&amp;gt;
+Template Files                 : {}
+Virt Auto Boot                 : 1
+Virt Bridge                    : xenbr0
+Virt CPUs                      : 1
+Virt Disk Driver Type          : raw
+Virt File Size(GB)             : 5
+Virt Path                      : 
+Virt RAM (MB)                  : 512
+Virt Type                      : kvm
+
+Name                           : CentOS-7-x86_64
+TFTP Boot Files                : {}
+Comment                        : 
+DHCP Tag                       : default
+Distribution                   : CentOS-7-x86_64
+Enable gPXE?                   : 0
+Enable PXE Menu?               : 1
+Fetchable Files                : {}
+Kernel Options                 : {'biosdevname': '0', 'net.ifnames': '0'}
+Kernel Options (Post Install)  : {}
+Kickstart                      : /var/lib/cobbler/kickstarts/CentOS-7-x86_64.cfg
+Kickstart Metadata             : {}
+Management Classes             : []
+Management Parameters          : &amp;lt;&lt;inherit&gt;&amp;gt;
+Name Servers                   : []
+Name Servers Search Path       : []
+Owners                         : ['admin']
+Parent Profile                 : 
+Internal proxy                 : 
+Red Hat Management Key         : &amp;lt;&lt;inherit&gt;&amp;gt;
+Red Hat Management Server      : &amp;lt;&lt;inherit&gt;&amp;gt;
+Repos                          : []
+Server Override                : &amp;lt;&lt;inherit&gt;&amp;gt;
+Template Files                 : {}
+Virt Auto Boot                 : 1
+Virt Bridge                    : xenbr0
+Virt CPUs                      : 1
+Virt Disk Driver Type          : raw
+Virt File Size(GB)             : 5
+Virt Path                      : 
+Virt RAM (MB)                  : 512
+Virt Type                      : kvm
+&amp;lt;/pre&amp;gt;
+##修改完成Cobbler配置文件一定要记住执行
+&lt;pre&gt;
+cobbler sync
+&lt;/pre&gt;
+##安装xinetd程序并启动
+&lt;pre&gt;
+yum install xinted -y
+systemctl start xinetd
+systemctl status xinetd
+&lt;/pre&gt;
+新建虚拟机就可也分配IP地址，选择系统安装系统
+##安装Cobbler自动化工具koan
+&lt;pre&gt;
+[root@localhost ~]# yum install -y koan
+&lt;/pre&gt;
+**查看系统中可以安装的系统，之前导入的系统**
+&lt;pre&gt;
+[root@localhost ~]# koan --server=192.168.56.11 --list=profiles 
+- looking for Cobbler at http://192.168.56.11:80/cobbler_api
+CentOS-7-x86_64
+CentOS-6-x86_64
+&lt;/pre&gt;
+**制定需要重新安装的系统**
+&lt;pre&gt;
+[root@localhost ~]# koan --replace-self --server=192.168.56.11 --profile=CentOS-6-x86_64
+reboot ###后就开始重装系统，危险操作做好确定好在重现安装系统
+&lt;/pre&gt;
+**实例安装另外一台实验用Linux系统**
+&lt;pre&gt;
+ssh 192.168.56.101   ##DHCP服务分配的IP地址
+###安装epel第三方源
+rpm -ivh http://mirrors.aliyun.com/epel/epel-release-latest-7.noarch.rpm
+###安装自动化管理工具koan
+yum install -y koan
+###使用koan工具重新安装系统
+koan --replace-salf --server=192.168.56.11 --profile=CentOS-6-x86_64
+###重启开始安装
+reboot
+&lt;/pre&gt;
+##如何解决koan工具安装错误机器，造成不必要的灾难，或者Cobbler自动化安装错误机器
+
+环境设计：
+
+        装机WLAN,只能使用一个DHCP服务，和其他公有的DHCP一定要分开否则会造成DHCP分配混乱，不准确，安装好系统后，在把服务器移动到我们需要的测试环境或者工作环境。
+##Cobblerweb界面
+网址访问：https://192.168.56.11/cobbler_web
+
+用户名及密码（默认）：
+
+Username：cobbler
+
+Password：cobbler
+
+##修改Cobblerweb界面用户名和密码
+&lt;pre&gt;
+[root@localhost ~]# cd /etc/cobbler/
+[root@localhost cobbler]# cat users.conf 
+# Cobbler WebUI / Web Services authorization config file
+#
+# NOTICE:
+# this file is only used when /etc/cobbler/modules.conf
+# specifies an authorization mode of either:
+#
+#   (A) authz_configfile
+#   (B) authz_ownership
+#
+# For (A), any user in this file, in any group, are allowed
+# full access to any object in cobbler configuration.
+#
+# For (B), users in the &quot;admins&quot; group are allowed full access
+# to any object, otherwise users can only edit an object if
+# their username/group is listed as an owner of that object. If a
+# user is not listed in this file they will have no access.
+#
+#     cobbler command line example:
+#
+#     cobbler system edit --name=server1 --owner=dbas,mac,pete,jack
+#
+# NOTE:  yes, you do need the equal sign after the names.
+# don't remove that part.  It's reserved for future use.
+
+[admins]
+admin = &quot;&quot;
+cobbler = &quot;&quot;
+&lt;/pre&gt;
+**密码文件及密码修改方法**
+&lt;pre&gt;
+###密码文件
+[root@localhost cobbler]# cat users.digest 
+cobbler:Cobbler:a2d6bae81669d707b72c0bd9806e01f3
+###修改密码
+[root@localhost cobbler]# htdigest /etc/cobbler/users.digest  &quot;Cobbler&quot;  cobbler
+Changing password for user cobbler in realm Cobbler
+New password: 
+Re-type new password: 
+&lt;/pre&gt;
+**配置Cobbler启动界面提示选单**
+&lt;pre&gt;
+[root@localhost pxe]# vim /etc/cobbler/pxe/pxedefault.template 
+DEFAULT menu
+PROMPT 0
+###主要是修改这个位置
+MENU TITLE Cobbler By chadwick | http://849231609.com
+TIMEOUT 200
+TOTALTIMEOUT 6000
+ONTIMEOUT $pxe_timeout_profile
+
+LABEL local
+        MENU LABEL (local)
+        MENU DEFAULT
+        LOCALBOOT -1
+
+$pxe_menu_items
+
+MENU end
+&lt;/pre&gt;
+##Cobbler安装后文件目录查看及作用
+&lt;pre&gt;
+rpm -ql cobbler
+/var/www/cobbler/ks_mirror   ===&amp;gt;放置的镜像文件
+/var/www/cobbler/repo_mirror/  ===&amp;gt;放置仓库镜像
+/var/lib/cobbler/kickstarts/ ===&amp;gt;kickstack文件位置
+/var/lib/cobbler/loaders   ===&amp;gt;启动需要的文件
+/var/lib/cobbler/snippets  ===&amp;gt;配置脚本文件
+/etc/cobbler/dhcp.template  ===&amp;gt;DHCP配置文件
+/etc/cobbler/settings     ===&amp;gt;配置文件
+&lt;/pre&gt;
+##使用Cobbler构建私有仓库
+&lt;pre&gt;
+##查看安装Cobbler安装包
+[root@localhost snippets]# rpm -aq | grep cobbler
+cobbler-web-2.6.11-1.el7.noarch
+cobbler-2.6.11-1.el7.x86_64
+##Openstack阿里云yum源
+http://mirrors.aliyun.com/centos/7.2.1511/cloud/x86_64/openstack-mitaka/
+##创建yum源
+[root@localhost ~]# cobbler repo add --name=openstack-mitaka --mirror=http://mirrors.aliyun.com/centos/7.2.1511/cloud/x86_64/openstack-mitaka/ --arch=x86_64 --breed=yum
+##同步yum源到本地
+[root@localhost ~]# cobbler reposync
+##默认情况下安装系统后会安装openstack-mitaka
+[root@localhost ~]# cobbler profile edit --name=CentOS-7-x86_64 --repos=&quot;openstack-mitaka&quot;
+##Cobbler配置文件默认是开启状态
+vim /etc/cobbler/settings 
+yum_post_install_mirror: 1
+##特别注意，这个地方需要在kickstart文件上加上yum仓库
+vim /var/cobbler/kickstarts/CentOS-7-x86_64.cfg
+最后
+%post
+$yum_config_stanza
+%end
+##加上定时任务，定期同步更新
+echo &quot;1 3 * * * /usr/bin/cobbler reposync --tries=3 -no-file&quot; &amp;gt;&amp;gt;/var/spool/cron/root
+&lt;/pre&gt;
+##服务器上架路程梳理
+1.服务器采购
+
+2.服务器验收比设置RAID（自动化RAID，可以，但是不一定适用所有公司）
+
+3.服务商提供验收单，运维验收负责人签字
+
+4.服务器上架
+
+5.资产录入
+
+6.开始自动化安装
+  1.将新服务器划入装机VLAN
+  2.根据资产清单上的MAC地址，自定义安装。
+     1.机房
+     2.机房区域
+     3.机柜
+     4.服务器位置
+     5.服务器网线接入端口
+     6.该端口MAC地址
+     7.操作系统，分区等，预分配的IP地址，主机名，子网，网关，DNS，角色。===&amp;gt;profile(发布文件)
+  3.自动化装机平台安装===&amp;gt;Cobber
+##自动化安装实验
+需要提前规划好的内容：
+
+MAC地址：00:50:56:38:85:C6
+IP地址：192.168.53.12
+主机名：node02
+子网掩码：255.255.255.0
+网关：192.168.56.2
+DNS：192.168.56.2
+
+**使用如下命令指定**
+&lt;pre&gt;
+[root@localhost cobbler]# cobbler system add --name=Linux-node02 --mac=00:50:56:38:85:C6 --profile=CentOS-7-x86_64 --ip-addres=192.168.56.12 --subnet=255.255.255.0 --gateway=192.168.56.2 --interface=eth0 --static=1 --hostname=Linux-node02 --name-servers=&quot;192.168.56.2&quot; --kickstart=/var/lib/cobbler/kickstarts/CentOS-7-x86_64.cfg
+&lt;/pre&gt;
+**查看成功的两种方法**
+&lt;pre&gt;
+##Cobbler工具查看
+[root@localhost cobbler]# cobbler system list
+   Linux-node02
+##查看DHCP配置问会自动生成组文件
+vim /etc/dhcp/dhcpd.conf
+# group for Cobbler DHCP tag: default
+group {
+    host generic1 {
+        hardware ethernet 00:50:56:38:85:C6;
+        fixed-address 192.168.56.12;
+        option host-name &quot;Linux-node02&quot;;
+        option subnet-mask 255.255.255.0;
+        option routers 192.168.56.2;
+        filename &quot;/pxelinux.0&quot;;
+        next-server 192.168.56.11;
+    }
+}
+&lt;/pre&gt;
+##Cobbler API
+&lt;pre&gt;
+##配置文件API配置
+vim /etc/httpd/conf.d/cobbler.conf
+ProxyPass /cobbler_api http://localhost:25151/
+ProxyPassReverse /cobbler_api http://localhost:25151/
+##简单Python脚本API
+[root@localhost ~]# vim cobbler_list.py
+#!/usr/bin/python
+import xmlrpclib
+server = xmlrpclib.Server(&quot;http://192.168.56.11/cobbler_api&quot;)
+#print server.get_distros()
+print server.get_profiles()
+print server.get_systems()
+#print server.get_images()
+print server.get_repos()
+&lt;/pre&gt;
+&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/pre&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/inherit&gt;&lt;/pre&gt;</content><author><name>chadwick</name><email>849231609@qq.com</email></author><category term="Cobbler" /><summary type="html">##Cobbler功能介绍 使用一个以前定义的模板来配置DHCP服务（如果启动了管理DHCP）将一个存储库（yum或rsync）建立镜像或解压缩一个媒介，以注册一个新操作系统。 在DHCP配置文件中为需要安装的机器创建一个条目，并使用你制定的参数（IP和MAC地址） 在TFTP服务目录下创建试单的pex文件 重新启动DHCP服务 重新启动机器开始安装（若果电源管理已启用） ##Cobbler安装 安装第三方yum源：阿里云epel源 rpm -ivh http://mirrors.aliyun.com/epel/epel-release-latest-7.noarch.rpm cd /etc/yum.repos.d/ ls cat epel.repo 安装Cobbler和需要的软件 [root@linux-node01 ~]# yum install httpd dhcp tftp cobbler cobbler-web pykickstart -y 查看安装完成后的httpd配置文件变化： [root@linux-node01 ~]# cd /etc/httpd/conf.d/ [root@linux-node01 conf.d]# ls autoindex.conf **cobbler_web.conf** ssl.conf welcome.conf **cobbler.conf** README userdir.conf 查看Cobbler配置文件 [root@linux-node01 conf.d]# cat cobbler.conf # This configuration file allows cobbler data # to be accessed over HTTP. AliasMatch ^/cblr(?!/svc/)(.*)?$ &quot;/var/www/cobbler$1&quot; AliasMatch ^/cobbler_track(.*)?$ &quot;/var/www/cobbler$1&quot; #AliasMatch ^/cobbler(.*)?$ &quot;/var/www/cobbler$1&quot; Alias /cobbler /var/www/cobbler Alias /cobbler_webui_content /var/www/cobbler_webui_content WSGIScriptAliasMatch ^/cblr/svc/([^/]*) /var/www/cobbler/svc/services.py &amp;lt;Directory &quot;/var/www/cobbler&quot;&amp;gt; SetEnv VIRTUALENV Options Indexes FollowSymLinks Order allow,deny Allow from all &amp;lt;/Directory&amp;gt; ProxyRequests off ** ProxyPass /cobbler_api http://localhost:25151/ ProxyPassReverse /cobbler_api http://localhost:25151/ ** BrowserMatch &quot;MSIE&quot; AuthDigestEnableQueryStringHack=On # the webui is now part of the &quot;cobbler-web&quot; package # and is visited at http://.../cobbler_web not this URL. # this is only a pointer to the new page. &amp;lt;Directory &quot;/var/www/cobbler/web/&quot;&amp;gt; Options Indexes FollowSymLinks Order allow,deny Allow from all &amp;lt;/Directory&amp;gt; = 2.4&amp;gt; &amp;lt;Location /cblr&amp;gt; Require all granted &amp;lt;/Location&amp;gt; 启动httpd服务 [root@linux-node01 conf.d]# systemctl start httpd 启动Cobbler服务 [root@linux-node01 conf.d]# systemctl start cobblerd 查看Cobbler需要配置的内容（相当于帮助文件）根据步骤配置 [root@linux-node01 conf.d]# cobbler check The following are potential configuration items that you may want to fix: 1 : The 'server' field in /etc/cobbler/settings must be set to something other than localhost, or kickstarting features will not work. This should be a resolvable hostname or IP for the boot server as reachable by all machines that will use it. 2 : For PXE to be functional, the 'next_server' field in /etc/cobbler/settings must be set to something other than 127.0.0.1, and should match the IP of the boot server on the PXE network. 3 : change 'disable' to 'no' in /etc/xinetd.d/tftp 4 : some network boot-loaders are missing from /var/lib/cobbler/loaders, you may run 'cobbler get-loaders' to download them, or, if you only want to handle x86/x86_64 netbooting, you may ensure that you have installed a *recent* version of the syslinux package installed and can ignore this message entirely. Files in this directory, should you want to support all architectures, should include pxelinux.0, menu.c32, elilo.efi, and yaboot. The 'cobbler get-loaders' command is the easiest way to resolve these requirements. 5 : enable and start rsyncd.service with systemctl 6 : debmirror package is not installed, it will be required to manage debian deployments and repositories 7 : The default password used by the sample templates for newly installed machines (default_password_crypted in /etc/cobbler/settings) is still set to 'cobbler' and should be changed, try: &quot;openssl passwd -1 -salt 'random-phrase-here' 'your-password-here'&quot; to generate new one 8 : fencing tools were not found, and are required to use the (optional) power management features. install cman or fence-agents to use them 1.Cobbler配置文件修改server,next_server(/etc/cobbler/settings) vim /etc/cobbler/settings 272 next_server: 192.168.56.11 384 server: 192.168.56.11 2.配置TFTP服务(/etc/xinetd.d/tftp) vim /etc/xinetd.d/tftp disable = no 3.启动rsync服务 systemctl start rsyncd systemctl status rsyncd [root@linux-node01 ~]# systemctl enable rsyncd.service Created symlink from /etc/systemd/system/multi-user.target.wants/rsyncd.service to /usr/lib/systemd/system/rsyncd.service. 4.下载必须安装的东西，执行下列命令： [root@linux-node01 conf.d]# cobbler get-loaders 执行如果报错问题，尝试重启httpd服务，可以解决。 [root@linux-node01 conf.d]# cobbler get-loaders task started: 2016-11-28_044112_get_loaders task started (id=Download Bootloader Content, time=Mon Nov 28 04:41:12 2016) path /var/lib/cobbler/loaders/README already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/COPYING.elilo already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/COPYING.yaboot already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/COPYING.syslinux already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/elilo-ia64.efi already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/yaboot already exists, not overwriting existing content, use --force if you wish to update downloading http://cobbler.github.io/loaders/pxelinux.0-3.86 to /var/lib/cobbler/loaders/pxelinux.0 Exception occured: &amp;lt;class 'urlgrabber.grabber.URLGrabError'&amp;gt; Exception value: [Errno 14] curl#56 - &quot;Recv failure: Connection reset by peer&quot; Exception Info: File &quot;/usr/lib/python2.7/site-packages/cobbler/remote.py&quot;, line 87, in run rc = self._run(self) File &quot;/usr/lib/python2.7/site-packages/cobbler/remote.py&quot;, line 181, in runner return self.remote.api.dlcontent(self.options.get(&quot;force&quot;,False), self.logger) File &quot;/usr/lib/python2.7/site-packages/cobbler/api.py&quot;, line 751, in dlcontent return grabber.run(force) File &quot;/usr/lib/python2.7/site-packages/cobbler/action_dlcontent.py&quot;, line 73, in run urlgrabber.grabber.urlgrab(src, filename=dst, proxies=proxies) File &quot;/usr/lib/python2.7/site-packages/urlgrabber/grabber.py&quot;, line 735, in urlgrab return default_grabber.urlgrab(url, filename, **kwargs) File &quot;/usr/lib/python2.7/site-packages/urlgrabber/grabber.py&quot;, line 1176, in urlgrab return _run_callback(opts.failfunc, opts) File &quot;/usr/lib/python2.7/site-packages/urlgrabber/grabber.py&quot;, line 1030, in _run_callback return cb(obj) File &quot;/usr/lib/python2.7/site-packages/urlgrabber/grabber.py&quot;, line 1024, in _do_raise raise obj.exception !!! TASK FAILED !!! 解决报错后执行命令正常，成功 [root@linux-node01 conf.d]# cobbler get-loaders task started: 2016-11-28_052442_get_loaders task started (id=Download Bootloader Content, time=Mon Nov 28 05:24:42 2016) path /var/lib/cobbler/loaders/README already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/COPYING.elilo already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/COPYING.yaboot already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/COPYING.syslinux already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/elilo-ia64.efi already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/yaboot already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/pxelinux.0 already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/menu.c32 already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/grub-x86.efi already exists, not overwriting existing content, use --force if you wish to update path /var/lib/cobbler/loaders/grub-x86_64.efi already exists, not overwriting existing content, use --force if you wish to update *** TASK COMPLETE *** 5.生成随机密码与配置密码 [root@linux-node01 ~]# openssl passwd -1 -salt 'cobbler' 'cobbler' $1$cobbler$M6SE55xZodWc9.vAKLJs6. vim /etc/cobbler/settings default_password_crypted: &quot;$1$cobb$M6SE55xZodWc9.vAKLJs6.&quot; 6.剩下的两个项目可以忽略掉： 电源管理：实际工作中可以使用，使用的很少 debmirror包未安装，主要针对的是Ubuntu系统，如果需要批量安装Ubuntu系统，需要安装这个包。 7.Cobbler 管理DHCP服务 修改Cobbler配置文件/etc/cobbler/settings，使Cobbler可以管理DHCP服务 vim /etc/cobbler/settings manage_dhcp = 0 改为 manage_dhcp = 1 修改Cobbler管理DHCP文件 [root@linux-node01 conf.d]# cd /etc/cobbler/ [root@linux-node01 cobbler]# ls auth.conf iso reporting users.digest cheetah_macros ldap rsync.exclude version cobbler_bash modules.conf rsync.template zone.template completions mongodb.conf secondary.template zone_templates dhcp.template named.template settings dnsmasq.template power tftpd.template import_rsync_whitelist pxe users.conf [root@linux-node01 cobbler]# cat dhcp.template # ****************************************************************** # Cobbler managed dhcpd.conf file # # generated from cobbler dhcp.conf template ($date) # Do NOT make changes to /etc/dhcpd.conf. Instead, make your changes # in /etc/cobbler/dhcp.template, as /etc/dhcpd.conf will be # overwritten. # # ****************************************************************** ddns-update-style interim; allow booting; allow bootp; ignore client-updates; set vendorclass = option vendor-class-identifier; option pxe-system-type code 93 = unsigned integer 16; subnet 192.168.56.0 netmask 255.255.255.0 { option routers 192.168.56.2; option domain-name-servers 192.168.56.2; option subnet-mask 255.255.255.0; range dynamic-bootp 192.168.56.100 192.168.56.254; default-lease-time 21600; max-lease-time 43200; next-server $next_server; class &quot;pxeclients&quot; { match if substring (option vendor-class-identifier, 0, 9) = &quot;PXEClient&quot;; if option pxe-system-type = 00:02 { filename &quot;ia64/elilo.efi&quot;; } else if option pxe-system-type = 00:06 { filename &quot;grub/grub-x86.efi&quot;; } else if option pxe-system-type = 00:07 { filename &quot;grub/grub-x86_64.efi&quot;; } else { filename &quot;pxelinux.0&quot;; } } } #for dhcp_tag in $dhcp_tags.keys(): ## group could be subnet if your dhcp tags line up with your subnets ## or really any valid dhcpd.conf construct ... if you only use the ## default dhcp tag in cobbler, the group block can be deleted for a ## flat configuration # group for Cobbler DHCP tag: $dhcp_tag group { #for mac in $dhcp_tags[$dhcp_tag].keys(): #set iface = $dhcp_tags[$dhcp_tag][$mac] host $iface.name { hardware ethernet $mac; #if $iface.ip_address: fixed-address $iface.ip_address; #end if #if $iface.hostname: option host-name &quot;$iface.hostname&quot;; #end if #if $iface.netmask: option subnet-mask $iface.netmask; #end if #if $iface.gateway: option routers $iface.gateway; #end if #if $iface.enable_gpxe: if exists user-class and option user-class = &quot;gPXE&quot; { filename &quot;http://$cobbler_server/cblr/svc/op/gpxe/system/$iface.owner&quot;; } else if exists user-class and option user-class = &quot;iPXE&quot; { filename &quot;http://$cobbler_server/cblr/svc/op/gpxe/system/$iface.owner&quot;; } else { filename &quot;undionly.kpxe&quot;; } #else filename &quot;$iface.filename&quot;; #end if ## Cobbler defaults to $next_server, but some users ## may like to use $iface.system.server for proxied setups next-server $next_server; ## next-server $iface.next_server; } #end for } #end for 重启Cobbler服务和生成配置文件 [root@linux-node01 cobbler]# systemctl restart cobblerd [root@linux-node01 cobbler]# cobbler sync 自动生成DHCP配置文件 dhcp配置文件错误，会导致DHCP启动错误，甚至会导致cobbler sync命令执行错误。 ##挂在光盘导入镜像 [root@linux-node01 cobbler]# mount /dev/cdrom /mnt mount: /dev/sr0 is write-protected, mounting read-only [root@linux-node01 cobbler]# cd /mnt/ [root@linux-node01 mnt]# ls CentOS_BuildTag GPL LiveOS RPM-GPG-KEY-CentOS-7 EFI images Packages RPM-GPG-KEY-CentOS-Testing-7 EULA isolinux repodata TRANS.TBL ##Cobbler导入镜像 [root@linux-node01 mnt]# cobbler import --path=/mnt/ --name=CentOS-7-x86_64 --arch=x86_64 task started: 2016-11-28_054534_import task started (id=Media import, time=Mon Nov 28 05:45:34 2016) ...... ##Cobbler镜像文件所方位置 [root@linux-node01 ~]# cd /var/www/cobbler/ks_mirror/ [root@linux-node01 ks_mirror]# ls CentOS-6.7-x86_64 CentOS-7-x86_64 config ##Cobbler自带的命令集 [root@linux-node01 ks_mirror]# cobbler profile usage ===== cobbler profile add cobbler profile copy cobbler profile dumpvars cobbler profile edit cobbler profile find cobbler profile getks cobbler profile list cobbler profile remove cobbler profile rename cobbler profile report [root@linux-node01 ~]# cobbler profile list CentOS-6.7-x86_64 CentOS-7-x86_64 ##查看Cobbler配置情况 [root@linux-node01 kickstarts]# cobbler profile report Name : CentOS-6.7-x86_64 TFTP Boot Files : {} Comment : DHCP Tag : default Distribution : CentOS-6.7-x86_64 Enable gPXE? : 0 Enable PXE Menu? : 1 Fetchable Files : {} Kernel Options : {} Kernel Options (Post Install) : {} Kickstart : /var/lib/cobbler/kickstarts/sample_end.ks ###**默认情况下自动给你指定了kickstarts文件** Kickstart Metadata : {} Management Classes : [] Management Parameters : &amp;lt;&amp;gt; Name Servers : [] Name Servers Search Path : [] Owners : ['admin'] Parent Profile : Internal proxy : Red Hat Management Key : &amp;lt;&amp;gt; Red Hat Management Server : &amp;lt;&amp;gt; Repos : [] Server Override : &amp;lt;&amp;gt; Template Files : {} Virt Auto Boot : 1 Virt Bridge : xenbr0 Virt CPUs : 1 Virt Disk Driver Type : raw Virt File Size(GB) : 5 Virt Path : Virt RAM (MB) : 512 Virt Type : kvm Name : CentOS-7-x86_64 TFTP Boot Files : {} Comment : DHCP Tag : default Distribution : CentOS-7-x86_64 Enable gPXE? : 0 Enable PXE Menu? : 1 Fetchable Files : {} Kernel Options : {} ###**指定内核添加信息** Kernel Options (Post Install) : {} Kickstart : /var/lib/cobbler/kickstarts/sample_end.ks ###**默认情况下自动给你指定了kickstarts文件** Kickstart Metadata : {} Management Classes : [] Management Parameters : &amp;lt;&amp;gt; Name Servers : [] Name Servers Search Path : [] Owners : ['admin'] Parent Profile : Internal proxy : Red Hat Management Key : &amp;lt;&amp;gt; Red Hat Management Server : &amp;lt;&amp;gt; Repos : [] Server Override : &amp;lt;&amp;gt; Template Files : {} Virt Auto Boot : 1 Virt Bridge : xenbr0 Virt CPUs : 1 Virt Disk Driver Type : raw Virt File Size(GB) : 5 Virt Path : Virt RAM (MB) : 512 Virt Type : kvm &amp;lt;/pre&amp;gt; ##Cobbler默认kickstart文件路径 [root@linux-node01 kickstarts]# cd /var/lib/cobbler/kickstarts/ [root@linux-node01 kickstarts]# ls CentOS-6.7-x86_64.cfg esxi5-ks.cfg sample_autoyast.xml sample_esxi5.ks CentOS-7-x86_64.cfg install_profiles sample_end.ks sample.ks default.ks legacy.ks sample_esx4.ks sample_old.seed esxi4-ks.cfg pxerescue.ks sample_esxi4.ks sample.seed ##上传CentOS7和CentOS6两个不同版本的kickstart文件到如下路劲 /var/lib/cobbler/kickstarts/ ##编辑Cobbler配置文件，调整kickstart文件路径 [root@linux-node01 kickstarts]# cobbler profile edit --name=CentOS-7-x86_64 --kickstart=/var/lib/cobbler/kickstarts/CentOS-7-x86_64.cfg [root@linux-node01 kickstarts]# cobbler profile edit --name=CentOS-6.7-x86_64 --kickstart=/var/lib/cobbler/kickstarts/CentOS-6.7-x86_64.cfg ##CentOS-7网卡配置修改内核参数 [root@linux-node01 kickstarts]# cobbler profile edit --name=CentOS-7-x86_64 --kopts='net.ifnames=0 biosdevname=0' ##编辑修改后查看添加的内容 [root@linux-node01 kickstarts]# cobbler profile report Name : CentOS-6.7-x86_64 TFTP Boot Files : {} Comment : DHCP Tag : default Distribution : CentOS-6.7-x86_64 Enable gPXE? : 0 Enable PXE Menu? : 1 Fetchable Files : {} Kernel Options : {} Kernel Options (Post Install) : {} Kickstart : /var/lib/cobbler/kickstarts/CentOS-6.7-x86_64.cfg Kickstart Metadata : {} Management Classes : [] Management Parameters : &amp;lt;&amp;gt; Name Servers : [] Name Servers Search Path : [] Owners : ['admin'] Parent Profile : Internal proxy : Red Hat Management Key : &amp;lt;&amp;gt; Red Hat Management Server : &amp;lt;&amp;gt; Repos : [] Server Override : &amp;lt;&amp;gt; Template Files : {} Virt Auto Boot : 1 Virt Bridge : xenbr0 Virt CPUs : 1 Virt Disk Driver Type : raw Virt File Size(GB) : 5 Virt Path : Virt RAM (MB) : 512 Virt Type : kvm Name : CentOS-7-x86_64 TFTP Boot Files : {} Comment : DHCP Tag : default Distribution : CentOS-7-x86_64 Enable gPXE? : 0 Enable PXE Menu? : 1 Fetchable Files : {} Kernel Options : {'biosdevname': '0', 'net.ifnames': '0'} Kernel Options (Post Install) : {} Kickstart : /var/lib/cobbler/kickstarts/CentOS-7-x86_64.cfg Kickstart Metadata : {} Management Classes : [] Management Parameters : &amp;lt;&amp;gt; Name Servers : [] Name Servers Search Path : [] Owners : ['admin'] Parent Profile : Internal proxy : Red Hat Management Key : &amp;lt;&amp;gt; Red Hat Management Server : &amp;lt;&amp;gt; Repos : [] Server Override : &amp;lt;&amp;gt; Template Files : {} Virt Auto Boot : 1 Virt Bridge : xenbr0 Virt CPUs : 1 Virt Disk Driver Type : raw Virt File Size(GB) : 5 Virt Path : Virt RAM (MB) : 512 Virt Type : kvm &amp;lt;/pre&amp;gt; ##修改完成Cobbler配置文件一定要记住执行 cobbler sync ##安装xinetd程序并启动 yum install xinted -y systemctl start xinetd systemctl status xinetd 新建虚拟机就可也分配IP地址，选择系统安装系统 ##安装Cobbler自动化工具koan [root@localhost ~]# yum install -y koan **查看系统中可以安装的系统，之前导入的系统** [root@localhost ~]# koan --server=192.168.56.11 --list=profiles - looking for Cobbler at http://192.168.56.11:80/cobbler_api CentOS-7-x86_64 CentOS-6-x86_64 **制定需要重新安装的系统** [root@localhost ~]# koan --replace-self --server=192.168.56.11 --profile=CentOS-6-x86_64 reboot ###后就开始重装系统，危险操作做好确定好在重现安装系统 **实例安装另外一台实验用Linux系统** ssh 192.168.56.101 ##DHCP服务分配的IP地址 ###安装epel第三方源 rpm -ivh http://mirrors.aliyun.com/epel/epel-release-latest-7.noarch.rpm ###安装自动化管理工具koan yum install -y koan ###使用koan工具重新安装系统 koan --replace-salf --server=192.168.56.11 --profile=CentOS-6-x86_64 ###重启开始安装 reboot ##如何解决koan工具安装错误机器，造成不必要的灾难，或者Cobbler自动化安装错误机器 环境设计： 装机WLAN,只能使用一个DHCP服务，和其他公有的DHCP一定要分开否则会造成DHCP分配混乱，不准确，安装好系统后，在把服务器移动到我们需要的测试环境或者工作环境。 ##Cobblerweb界面 网址访问：https://192.168.56.11/cobbler_web 用户名及密码（默认）： Username：cobbler Password：cobbler ##修改Cobblerweb界面用户名和密码 [root@localhost ~]# cd /etc/cobbler/ [root@localhost cobbler]# cat users.conf # Cobbler WebUI / Web Services authorization config file # # NOTICE: # this file is only used when /etc/cobbler/modules.conf # specifies an authorization mode of either: # # (A) authz_configfile # (B) authz_ownership # # For (A), any user in this file, in any group, are allowed # full access to any object in cobbler configuration. # # For (B), users in the &quot;admins&quot; group are allowed full access # to any object, otherwise users can only edit an object if # their username/group is listed as an owner of that object. If a # user is not listed in this file they will have no access. # # cobbler command line example: # # cobbler system edit --name=server1 --owner=dbas,mac,pete,jack # # NOTE: yes, you do need the equal sign after the names. # don't remove that part. It's reserved for future use. [admins] admin = &quot;&quot; cobbler = &quot;&quot; **密码文件及密码修改方法** ###密码文件 [root@localhost cobbler]# cat users.digest cobbler:Cobbler:a2d6bae81669d707b72c0bd9806e01f3 ###修改密码 [root@localhost cobbler]# htdigest /etc/cobbler/users.digest &quot;Cobbler&quot; cobbler Changing password for user cobbler in realm Cobbler New password: Re-type new password: **配置Cobbler启动界面提示选单** [root@localhost pxe]# vim /etc/cobbler/pxe/pxedefault.template DEFAULT menu PROMPT 0 ###主要是修改这个位置 MENU TITLE Cobbler By chadwick | http://849231609.com TIMEOUT 200 TOTALTIMEOUT 6000 ONTIMEOUT $pxe_timeout_profile LABEL local MENU LABEL (local) MENU DEFAULT LOCALBOOT -1 $pxe_menu_items MENU end ##Cobbler安装后文件目录查看及作用 rpm -ql cobbler /var/www/cobbler/ks_mirror ===&amp;gt;放置的镜像文件 /var/www/cobbler/repo_mirror/ ===&amp;gt;放置仓库镜像 /var/lib/cobbler/kickstarts/ ===&amp;gt;kickstack文件位置 /var/lib/cobbler/loaders ===&amp;gt;启动需要的文件 /var/lib/cobbler/snippets ===&amp;gt;配置脚本文件 /etc/cobbler/dhcp.template ===&amp;gt;DHCP配置文件 /etc/cobbler/settings ===&amp;gt;配置文件 ##使用Cobbler构建私有仓库 ##查看安装Cobbler安装包 [root@localhost snippets]# rpm -aq | grep cobbler cobbler-web-2.6.11-1.el7.noarch cobbler-2.6.11-1.el7.x86_64 ##Openstack阿里云yum源 http://mirrors.aliyun.com/centos/7.2.1511/cloud/x86_64/openstack-mitaka/ ##创建yum源 [root@localhost ~]# cobbler repo add --name=openstack-mitaka --mirror=http://mirrors.aliyun.com/centos/7.2.1511/cloud/x86_64/openstack-mitaka/ --arch=x86_64 --breed=yum ##同步yum源到本地 [root@localhost ~]# cobbler reposync ##默认情况下安装系统后会安装openstack-mitaka [root@localhost ~]# cobbler profile edit --name=CentOS-7-x86_64 --repos=&quot;openstack-mitaka&quot; ##Cobbler配置文件默认是开启状态 vim /etc/cobbler/settings yum_post_install_mirror: 1 ##特别注意，这个地方需要在kickstart文件上加上yum仓库 vim /var/cobbler/kickstarts/CentOS-7-x86_64.cfg 最后 %post $yum_config_stanza %end ##加上定时任务，定期同步更新 echo &quot;1 3 * * * /usr/bin/cobbler reposync --tries=3 -no-file&quot; &amp;gt;&amp;gt;/var/spool/cron/root ##服务器上架路程梳理 1.服务器采购 2.服务器验收比设置RAID（自动化RAID，可以，但是不一定适用所有公司） 3.服务商提供验收单，运维验收负责人签字 4.服务器上架 5.资产录入 6.开始自动化安装 1.将新服务器划入装机VLAN 2.根据资产清单上的MAC地址，自定义安装。 1.机房 2.机房区域 3.机柜 4.服务器位置 5.服务器网线接入端口 6.该端口MAC地址 7.操作系统，分区等，预分配的IP地址，主机名，子网，网关，DNS，角色。===&amp;gt;profile(发布文件) 3.自动化装机平台安装===&amp;gt;Cobber ##自动化安装实验 需要提前规划好的内容： MAC地址：00:50:56:38:85:C6 IP地址：192.168.53.12 主机名：node02 子网掩码：255.255.255.0 网关：192.168.56.2 DNS：192.168.56.2 **使用如下命令指定** [root@localhost cobbler]# cobbler system add --name=Linux-node02 --mac=00:50:56:38:85:C6 --profile=CentOS-7-x86_64 --ip-addres=192.168.56.12 --subnet=255.255.255.0 --gateway=192.168.56.2 --interface=eth0 --static=1 --hostname=Linux-node02 --name-servers=&quot;192.168.56.2&quot; --kickstart=/var/lib/cobbler/kickstarts/CentOS-7-x86_64.cfg **查看成功的两种方法** ##Cobbler工具查看 [root@localhost cobbler]# cobbler system list Linux-node02 ##查看DHCP配置问会自动生成组文件 vim /etc/dhcp/dhcpd.conf # group for Cobbler DHCP tag: default group { host generic1 { hardware ethernet 00:50:56:38:85:C6; fixed-address 192.168.56.12; option host-name &quot;Linux-node02&quot;; option subnet-mask 255.255.255.0; option routers 192.168.56.2; filename &quot;/pxelinux.0&quot;; next-server 192.168.56.11; } } ##Cobbler API ##配置文件API配置 vim /etc/httpd/conf.d/cobbler.conf ProxyPass /cobbler_api http://localhost:25151/ ProxyPassReverse /cobbler_api http://localhost:25151/ ##简单Python脚本API [root@localhost ~]# vim cobbler_list.py #!/usr/bin/python import xmlrpclib server = xmlrpclib.Server(&quot;http://192.168.56.11/cobbler_api&quot;) #print server.get_distros() print server.get_profiles() print server.get_systems() #print server.get_images() print server.get_repos()</summary></entry><entry><title type="html">GitHub使用方法</title><link href="http://0.0.0.0:4000/2017/12/18/Github.html" rel="alternate" type="text/html" title="GitHub使用方法" /><published>2017-12-18T00:00:00+08:00</published><updated>2017-12-18T00:00:00+08:00</updated><id>http://0.0.0.0:4000/2017/12/18/Github</id><content type="html" xml:base="http://0.0.0.0:4000/2017/12/18/Github.html">&lt;p&gt;#Github使用方法
+##注册账户和创建仓库
+要先使用Github第一步当然是注册账号了，进入&lt;a href=&quot;https://github.com/&quot;&gt;Github&lt;/a&gt;,之后就可以创建仓库了（免费用户只能创建公共仓库）Certe a New Repository，填好名称后Create，之后会出现一些仓库的配置信息等。
+##安装客户端
+进入&lt;a href=&quot;https://github-for-windows.en.softonic.com/&quot;&gt;Github&lt;/a&gt;下载安装即可。
+##Git配置
+右键Git Bash进入git命令行，为了把本地仓库传到github上，还需要配置ssh key。
+首先在本地创建ssh key：&lt;/p&gt;
+&lt;pre&gt;
+$ ssh-keygen -t rsa -C &quot;849231609@qq.com&quot;
+Generating public/private rsa key pair.
+Enter file in which to save the key (/c/Users/xl/.ssh/id_rsa):
+Created directory '/c/Users/xl/.ssh'.
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /c/Users/xl/.ssh/id_rsa.
+Your public key has been saved in /c/Users/xl/.ssh/id_rsa.pub.
+The key fingerprint is:
+SHA256:NhLKKbyUqgcckqnjnGFcZ+kle6euoM5TsCY/q2+2fcs 849231609@qq.com
+The key's randomart image is:
++---[RSA 2048]----+
+|                 |
+|                 |
+| o    o          |
+|++ + B o         |
+|= X B = S        |
+|=X + o + o       |
+|B+=.  . o        |
+|o=B.....         |
+|+X=+.oEo         |
++----[SHA256]-----+
+
+&lt;/pre&gt;
+&lt;p&gt;后面的email改为注册的邮箱即可，之后会要求确认路径和输入密码，使用默认的一路回车就行，成功的话会在~/生成.ssh的文件夹，进入文件夹，打开id_rsa.pub，复制里面的key。&lt;/p&gt;
+&lt;pre&gt;
+cd ~/.ssh
+$ ls
+id_rsa  id_rsa.pub
+$ cat id_rsa.pub
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEHhdxb5FmCnn0dHhuo0cfDbmkAPhSQaWvIJXDpB4iXCuMGnUDs8hz7ykKkr0h5WGrhSJnuh7nmqm42Lo6iH6WMnNEnGf8SB6q7b0CS5Cr8+OyWGKqhtcASbaxTSjBVBD4TnlBag/GK5X8/NX3v99ZYupej65NDvs9ZvySdaqv15Gp1h4FEkjcU1nEDT7EwJeJTouOG6dUGvU7sKEhNggggmy8OVrwJX4Cis5UwHOfiAFgjasGCLI1G5xdT5kqMCn+m49GOy3V6fI+169QcFxZTuxFU3WZ+IfMo2J9duUQMDmxdXE0vxFZlUUhTkQ9+pydiFjvl+MCoDhGWuDTjlhv 849231609@qq.com
+&lt;/pre&gt;
+&lt;p&gt;回到github，进入Settings===&amp;gt;SSH and GPG keys===&amp;gt;New SSH key===&amp;gt; Title(自定义)===&amp;gt;Key(复制cat id_rsa.pub的密钥)===&amp;gt;Add SSH key&lt;/p&gt;
+
+&lt;p&gt;为了验证是否成功，在git bash输入&lt;/p&gt;
+&lt;pre&gt;
+$ ssh -T git@github.com
+The authenticity of host 'github.com (192.30.253.113)' can't be established.
+RSA key fingerprint is SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'github.com,192.30.253.113' (RSA) to the list of known hosts.
+Permission denied (publickey).
+&lt;/pre&gt;
+&lt;p&gt;第一次运行会提示，是否continue，输入yes，出现以上结果表示成功连接github。&lt;/p&gt;
+
+&lt;p&gt;本地仓库上传到github上去，在上传之前还需要设置username和email，github每次commit都会记录usernameheemail。&lt;/p&gt;
+&lt;pre&gt;
+$ git config --global user.name &quot;xingdingchun&quot;
+$ git config --global user.email &quot;849231609@qq.com&quot;
+&lt;/pre&gt;
+&lt;p&gt;把刚刚创建好的github的仓库下载到本地&lt;/p&gt;
+&lt;pre&gt;
+$ git clone https://github.com/xingdingchun/chadwick
+Cloning into 'chadwick'...
+remote: Counting objects: 17, done.
+remote: Compressing objects: 100% (15/15), done.
+remote: Total 17 (delta 3), reused 8 (delta 0), pack-reused 0
+Unpacking objects: 100% (17/17), done.
+$ ls
+chadwick/
+$ cd chadwick
+$ ls -a
+./  ../  .git/  centos.md  README.md
+$ cd .git/
+$ ls
+config       HEAD    index  logs/     packed-refs
+description  hooks/  info/  objects/  refs/
+$ cat config
+[core]
+        repositoryformatversion = 0
+        filemode = false
+        bare = false
+        logallrefupdates = true
+        symlinks = false
+        ignorecase = true
+[remote &quot;origin&quot;]
+        url = https://github.com/xingdingchun/chadwick
+        fetch = +refs/heads/*:refs/remotes/origin/*
+[branch &quot;master&quot;]
+        remote = origin
+        merge = refs/heads/master
+&lt;/pre&gt;
+&lt;p&gt;上传到github：&lt;/p&gt;
+&lt;pre&gt;
+$ cd chadwick
+$ git init
+Reinitialized existing Git repository in D:/Github chadwick/.git/
+$ git remote add origin https://github.com/xingdingchun/chadwick
+$ git push origin master
+Everything up-to-date
+&lt;/pre&gt;
+&lt;p&gt;执行$ git remote add origin https://github.com/xingdingchun/chadwick出错&lt;/p&gt;
+&lt;pre&gt;
+git remote rm  oringin
+git pull origin master
+&lt;/pre&gt;
+&lt;p&gt;##提交上传下载命令
+更换目录使用git add .
+git push命令会将本地仓库推送到远程服务器
+git pull命令则相反，把远程服务器上的仓库同步到本地&lt;/p&gt;
+&lt;pre&gt;
+$ git push origin master
+Everything up-to-date
+$ git pull origin master
+fatal: unable to access 'https://github.com/xingdingchun/chadwick/': Empty reply from server
+&lt;/pre&gt;
+&lt;p&gt;##.gitignore文件
+.gitignore顾名思义就是告诉git需要忽略的文件，这是一个很重要并且和实用的文件，一般我们写代码后会执行编译，这期间会产生很多中间文件和可执行文件，这些都不是代码文件，是不需要git来管理的，但是我们git status的时候回看到很多这样的文件，如果用git add -A来添加的话会把他们都加进去，二手动一个一个的添加也太麻烦，这时就需要.gitignore，如：在一个项目中.gitignore是这样写的：&lt;/p&gt;
+
+&lt;p&gt;bin&lt;/p&gt;
+
+&lt;p&gt;*.suo&lt;/p&gt;
+
+&lt;p&gt;obj&lt;/p&gt;
+
+&lt;p&gt;bin和obj是编译目录，里面都不是代码，回来；suo文件是配置文件不需要，git status时只会看到源代码，可以放心的git add -A。
+##tag
+可以创建一个tag来指向软件开发中的一个关键时期，比如版本更新的时候可以建一个“v2.0”之列的标签，这样回顾的时候回比较方便，tag的使用主要是查看tag，创建tag，验证tag以及共享tag&lt;/p&gt;
+
+&lt;p&gt;##提交的方法
+提交目录下执行&lt;/p&gt;
+&lt;pre&gt;
+git add .
+git commit -m 'filename'
+git push origin master
+&lt;/pre&gt;</content><author><name>chadwick</name><email>849231609@qq.com</email></author><category term="git" /><summary type="html">#Github使用方法 ##注册账户和创建仓库 要先使用Github第一步当然是注册账号了，进入Github,之后就可以创建仓库了（免费用户只能创建公共仓库）Certe a New Repository，填好名称后Create，之后会出现一些仓库的配置信息等。 ##安装客户端 进入Github下载安装即可。 ##Git配置 右键Git Bash进入git命令行，为了把本地仓库传到github上，还需要配置ssh key。 首先在本地创建ssh key： $ ssh-keygen -t rsa -C &quot;849231609@qq.com&quot; Generating public/private rsa key pair. Enter file in which to save the key (/c/Users/xl/.ssh/id_rsa): Created directory '/c/Users/xl/.ssh'. Enter passphrase (empty for no passphrase): Enter same passphrase again: Your identification has been saved in /c/Users/xl/.ssh/id_rsa. Your public key has been saved in /c/Users/xl/.ssh/id_rsa.pub. The key fingerprint is: SHA256:NhLKKbyUqgcckqnjnGFcZ+kle6euoM5TsCY/q2+2fcs 849231609@qq.com The key's randomart image is: +---[RSA 2048]----+ | | | | | o o | |++ + B o | |= X B = S | |=X + o + o | |B+=. . o | |o=B..... | |+X=+.oEo | +----[SHA256]-----+ 后面的email改为注册的邮箱即可，之后会要求确认路径和输入密码，使用默认的一路回车就行，成功的话会在~/生成.ssh的文件夹，进入文件夹，打开id_rsa.pub，复制里面的key。 cd ~/.ssh $ ls id_rsa id_rsa.pub $ cat id_rsa.pub ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEHhdxb5FmCnn0dHhuo0cfDbmkAPhSQaWvIJXDpB4iXCuMGnUDs8hz7ykKkr0h5WGrhSJnuh7nmqm42Lo6iH6WMnNEnGf8SB6q7b0CS5Cr8+OyWGKqhtcASbaxTSjBVBD4TnlBag/GK5X8/NX3v99ZYupej65NDvs9ZvySdaqv15Gp1h4FEkjcU1nEDT7EwJeJTouOG6dUGvU7sKEhNggggmy8OVrwJX4Cis5UwHOfiAFgjasGCLI1G5xdT5kqMCn+m49GOy3V6fI+169QcFxZTuxFU3WZ+IfMo2J9duUQMDmxdXE0vxFZlUUhTkQ9+pydiFjvl+MCoDhGWuDTjlhv 849231609@qq.com 回到github，进入Settings===&amp;gt;SSH and GPG keys===&amp;gt;New SSH key===&amp;gt; Title(自定义)===&amp;gt;Key(复制cat id_rsa.pub的密钥)===&amp;gt;Add SSH key 为了验证是否成功，在git bash输入 $ ssh -T git@github.com The authenticity of host 'github.com (192.30.253.113)' can't be established. RSA key fingerprint is SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8. Are you sure you want to continue connecting (yes/no)? yes Warning: Permanently added 'github.com,192.30.253.113' (RSA) to the list of known hosts. Permission denied (publickey). 第一次运行会提示，是否continue，输入yes，出现以上结果表示成功连接github。 本地仓库上传到github上去，在上传之前还需要设置username和email，github每次commit都会记录usernameheemail。 $ git config --global user.name &quot;xingdingchun&quot; $ git config --global user.email &quot;849231609@qq.com&quot; 把刚刚创建好的github的仓库下载到本地 $ git clone https://github.com/xingdingchun/chadwick Cloning into 'chadwick'... remote: Counting objects: 17, done. remote: Compressing objects: 100% (15/15), done. remote: Total 17 (delta 3), reused 8 (delta 0), pack-reused 0 Unpacking objects: 100% (17/17), done. $ ls chadwick/ $ cd chadwick $ ls -a ./ ../ .git/ centos.md README.md $ cd .git/ $ ls config HEAD index logs/ packed-refs description hooks/ info/ objects/ refs/ $ cat config [core] repositoryformatversion = 0 filemode = false bare = false logallrefupdates = true symlinks = false ignorecase = true [remote &quot;origin&quot;] url = https://github.com/xingdingchun/chadwick fetch = +refs/heads/*:refs/remotes/origin/* [branch &quot;master&quot;] remote = origin merge = refs/heads/master 上传到github： $ cd chadwick $ git init Reinitialized existing Git repository in D:/Github chadwick/.git/ $ git remote add origin https://github.com/xingdingchun/chadwick $ git push origin master Everything up-to-date 执行$ git remote add origin https://github.com/xingdingchun/chadwick出错 git remote rm oringin git pull origin master ##提交上传下载命令 更换目录使用git add . git push命令会将本地仓库推送到远程服务器 git pull命令则相反，把远程服务器上的仓库同步到本地 $ git push origin master Everything up-to-date $ git pull origin master fatal: unable to access 'https://github.com/xingdingchun/chadwick/': Empty reply from server ##.gitignore文件 .gitignore顾名思义就是告诉git需要忽略的文件，这是一个很重要并且和实用的文件，一般我们写代码后会执行编译，这期间会产生很多中间文件和可执行文件，这些都不是代码文件，是不需要git来管理的，但是我们git status的时候回看到很多这样的文件，如果用git add -A来添加的话会把他们都加进去，二手动一个一个的添加也太麻烦，这时就需要.gitignore，如：在一个项目中.gitignore是这样写的： bin *.suo obj bin和obj是编译目录，里面都不是代码，回来；suo文件是配置文件不需要，git status时只会看到源代码，可以放心的git add -A。 ##tag 可以创建一个tag来指向软件开发中的一个关键时期，比如版本更新的时候可以建一个“v2.0”之列的标签，这样回顾的时候回比较方便，tag的使用主要是查看tag，创建tag，验证tag以及共享tag ##提交的方法 提交目录下执行 git add . git commit -m 'filename' git push origin master</summary></entry><entry><title type="html">Zabbix Install</title><link href="http://0.0.0.0:4000/2017/12/17/zabbix-yum-install.html" rel="alternate" type="text/html" title="Zabbix Install" /><published>2017-12-17T00:00:00+08:00</published><updated>2017-12-17T00:00:00+08:00</updated><id>http://0.0.0.0:4000/2017/12/17/zabbix-yum-install</id><content type="html" xml:base="http://0.0.0.0:4000/2017/12/17/zabbix-yum-install.html">&lt;p&gt;#Zabbix安装
+##zabbix安装基础环境配置
+安装zabbix的yum源，这里有必要提一点，阿里的yum源已经提供了zabbix3.0。因此我们不需要使用官方yum源。当然如果你的网络有足够好，也可以尝试使用官方yum源，本次安装以CentOS 7系统来进行安装，在安装之前做好关闭firewalld及selinux，并做好时间同步。&lt;/p&gt;
+
+&lt;p&gt;1.1、yum源配置&lt;/p&gt;
+&lt;pre&gt;
+rpm -ivh http://mirrors.aliyun.com/zabbix/zabbix/3.0/rhel/7/x86_64/zabbix-release-3.0-1.el7.noarch.rpm
+&lt;/pre&gt;
+&lt;p&gt;1.2、安装相关软件&lt;/p&gt;
+&lt;pre&gt;
+yum install zabbix-server zabbix-web zabb-server-mysql zabbix-web-mysql mariadb-server mariadb zabbix-agent -y
+&lt;/pre&gt;
+&lt;p&gt;1.3、修改PHP时区配置&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;方法一：&lt;/em&gt;&lt;/p&gt;
+&lt;pre&gt;
+sed -i 's@# php_value date.timezone Europe/Riga@php_value date.timezone Asia/Shanghai@g' /etc/httpd/conf.d/zabbix.conf
+&lt;/pre&gt;
+&lt;p&gt;&lt;em&gt;方法二：&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;直接使用vim修改/etc/httpd/conf.d/zabbix.conf文件&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;注意：&lt;/strong&gt;这里修改的是/etc/httpd/conf.d/zabbix.conf而不是/etc/php.ini文件&lt;/p&gt;
+
+&lt;p&gt;##PHP编译安装
+1.1、PHP程序下载&lt;/p&gt;
+
+&lt;pre&gt;
+wget http://mirrors.sohu.com/php/php-5.6.9.tar.gz
+tar zxf php-5.6.9.tar.gz 
+cd php-5.6.9
+&lt;/pre&gt;
+
+&lt;p&gt;1.2、编译安装PHP&lt;/p&gt;
+
+&lt;p&gt;依赖包安装：&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;注意&lt;/strong&gt;：有些包需要第三方epel源，需要先安装epel源。&lt;/p&gt;
+&lt;pre&gt;
+yum install –y zlib-devel libxm12-devel libjpeg-devel libjpeg-turbo-devel libpng-devel gd-devel libcurl-devel libxslt-devel openssl-devel freetype-devel libmcrypt-devel mhash mcrypt
+&lt;/pre&gt;
+&lt;p&gt;1.3、PHP-5.6.9编译安装配置启动&lt;/p&gt;
+&lt;pre&gt;
+./configure --prefix=/usr/local/php-5.6.9 --with-mysql=mysqlnd --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --with-gettext --with-mysqli --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline
+-optimization --with-curl --enable-mbregex --enable-fpm --enable-mbstring --with-mcrypt --with-gd --enable-gd-native-ttf --with-penssl --with-mhash --enable-pentl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --enable-short-tags --enable-static --with-xsl --with-fpm-user=www --with-fpm-group=www --enable-ftp --enable-opcache=no
+make &amp;amp;&amp;amp; make install
+ln -s /usr/local/php-5.6.9/ /usr/local/php
+cp php.ini-production /usr/local/php/lib/php.ini
+cp /usr/local/php/etc/php-fpm.conf.default /usr/local/php/etc/php-fpm.conf
+&lt;/pre&gt;
+
+&lt;p&gt;##数据库配置&lt;/p&gt;
+
+&lt;p&gt;在CentOS7上如果通过yum方式安装的话，已经找不到MySQL数据库了，已经变成了mairdb，启动方式略有不同。&lt;/p&gt;
+
+&lt;p&gt;1.1、启动数据&lt;/p&gt;
+
+&lt;pre&gt;
+systemctl start mariadb
+&lt;/pre&gt;
+
+&lt;p&gt;1.2、创建zabbix所用的数据库及库名&lt;/p&gt;
+
+&lt;pre&gt;
+mysql     #*进入mariadb数据库*
+create dabatase zabbix character set utf8 collate utf8)bin;      #*创建数据库*
+grant all on zabbix.* to zabbix@'localhost' dentified by '123456'; #*给数据库授权*
+exit    #*退出数据库*
+&lt;/pre&gt;
+
+&lt;p&gt;1.3、导入数据库&lt;/p&gt;
+
+&lt;p&gt;早期的版本可以使用mysql命令直接导入，zabbix3.0版本数据库变成了create.sql.gz，需要使用zcat命令查看内容。&lt;/p&gt;
+&lt;pre&gt;
+cd /usr/share/doc/zabbix-server-mysql-3.0.5
+zcat cerate.sql.gz | mysql -uzabbix -p123456 zabbix
+&lt;/pre&gt;
+&lt;p&gt;##Zabbix配置&lt;/p&gt;
+
+&lt;p&gt;1.1、修改zabbix-server配置文件/etc/zabbix/zabbix-server.conf&lt;/p&gt;
+&lt;pre&gt;
+# vim /etc/zabbix/zabbix_server.conf
+**修改内容**
+DBHost=localhost  #数据库所在主机
+DBName=zabbix     #数据库名
+DBUser=zabbix     #数据库用户名
+DBPassword=123456 #数据库密码
+&lt;/pre&gt;
+
+&lt;p&gt;1.2、启动Zabbix及http服务&lt;/p&gt;
+
+&lt;pre&gt;
+systemctl start zabbix-server
+systemctl start zabbix-agent
+systemctl start httpd
+**启动httpd服务报错**CentOS内核问题
+执行：
+yum upgrade 更新重启就解决
+&lt;/pre&gt;
+
+&lt;p&gt;1.3、网页配置&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;注意&lt;/strong&gt;：
+配置数据库的端口使用的是mariadb数据库端口是3306
+密码，用户名是自行设置的。完成后登陆。
+登陆的用户名是&lt;strong&gt;Adimin&lt;/strong&gt;密码是&lt;strong&gt;zabbix&lt;/strong&gt;登陆后的第一件事是修改密码。&lt;/p&gt;</content><author><name>chadwick</name><email>849231609@qq.com</email></author><category term="Zabbix" /><summary type="html">#Zabbix安装 ##zabbix安装基础环境配置 安装zabbix的yum源，这里有必要提一点，阿里的yum源已经提供了zabbix3.0。因此我们不需要使用官方yum源。当然如果你的网络有足够好，也可以尝试使用官方yum源，本次安装以CentOS 7系统来进行安装，在安装之前做好关闭firewalld及selinux，并做好时间同步。 1.1、yum源配置 rpm -ivh http://mirrors.aliyun.com/zabbix/zabbix/3.0/rhel/7/x86_64/zabbix-release-3.0-1.el7.noarch.rpm 1.2、安装相关软件 yum install zabbix-server zabbix-web zabb-server-mysql zabbix-web-mysql mariadb-server mariadb zabbix-agent -y 1.3、修改PHP时区配置 方法一： sed -i 's@# php_value date.timezone Europe/Riga@php_value date.timezone Asia/Shanghai@g' /etc/httpd/conf.d/zabbix.conf 方法二： 直接使用vim修改/etc/httpd/conf.d/zabbix.conf文件 注意：这里修改的是/etc/httpd/conf.d/zabbix.conf而不是/etc/php.ini文件 ##PHP编译安装 1.1、PHP程序下载 wget http://mirrors.sohu.com/php/php-5.6.9.tar.gz tar zxf php-5.6.9.tar.gz cd php-5.6.9 1.2、编译安装PHP 依赖包安装： 注意：有些包需要第三方epel源，需要先安装epel源。 yum install –y zlib-devel libxm12-devel libjpeg-devel libjpeg-turbo-devel libpng-devel gd-devel libcurl-devel libxslt-devel openssl-devel freetype-devel libmcrypt-devel mhash mcrypt 1.3、PHP-5.6.9编译安装配置启动 ./configure --prefix=/usr/local/php-5.6.9 --with-mysql=mysqlnd --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --with-gettext --with-mysqli --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline -optimization --with-curl --enable-mbregex --enable-fpm --enable-mbstring --with-mcrypt --with-gd --enable-gd-native-ttf --with-penssl --with-mhash --enable-pentl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --enable-short-tags --enable-static --with-xsl --with-fpm-user=www --with-fpm-group=www --enable-ftp --enable-opcache=no make &amp;amp;&amp;amp; make install ln -s /usr/local/php-5.6.9/ /usr/local/php cp php.ini-production /usr/local/php/lib/php.ini cp /usr/local/php/etc/php-fpm.conf.default /usr/local/php/etc/php-fpm.conf ##数据库配置 在CentOS7上如果通过yum方式安装的话，已经找不到MySQL数据库了，已经变成了mairdb，启动方式略有不同。 1.1、启动数据 systemctl start mariadb 1.2、创建zabbix所用的数据库及库名 mysql #*进入mariadb数据库* create dabatase zabbix character set utf8 collate utf8)bin; #*创建数据库* grant all on zabbix.* to zabbix@'localhost' dentified by '123456'; #*给数据库授权* exit #*退出数据库* 1.3、导入数据库 早期的版本可以使用mysql命令直接导入，zabbix3.0版本数据库变成了create.sql.gz，需要使用zcat命令查看内容。 cd /usr/share/doc/zabbix-server-mysql-3.0.5 zcat cerate.sql.gz | mysql -uzabbix -p123456 zabbix ##Zabbix配置 1.1、修改zabbix-server配置文件/etc/zabbix/zabbix-server.conf # vim /etc/zabbix/zabbix_server.conf **修改内容** DBHost=localhost #数据库所在主机 DBName=zabbix #数据库名 DBUser=zabbix #数据库用户名 DBPassword=123456 #数据库密码 1.2、启动Zabbix及http服务 systemctl start zabbix-server systemctl start zabbix-agent systemctl start httpd **启动httpd服务报错**CentOS内核问题 执行： yum upgrade 更新重启就解决 1.3、网页配置 注意： 配置数据库的端口使用的是mariadb数据库端口是3306 密码，用户名是自行设置的。完成后登陆。 登陆的用户名是Adimin密码是zabbix登陆后的第一件事是修改密码。</summary></entry><entry><title type="html">CentOS System install and Initialization</title><link href="http://0.0.0.0:4000/2016/10/13/CentOS.html" rel="alternate" type="text/html" title="CentOS System install and Initialization" /><published>2016-10-13T00:00:00+08:00</published><updated>2016-10-13T00:00:00+08:00</updated><id>http://0.0.0.0:4000/2016/10/13/CentOS</id><content type="html" xml:base="http://0.0.0.0:4000/2016/10/13/CentOS.html">&lt;h1 id=&quot;操作系统安装及初始化规范&quot;&gt;操作系统安装及初始化规范&lt;/h1&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;v1.0&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;##操作系统安装流程&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;服务器采购&lt;/li&gt;
+  &lt;li&gt;服务器验收并设置raid&lt;/li&gt;
+  &lt;li&gt;服务商提供验收单，运维验收负责人签字&lt;/li&gt;
+  &lt;li&gt;服务器上架&lt;/li&gt;
+  &lt;li&gt;资产录入&lt;/li&gt;
+  &lt;li&gt;自动化安装
+    &lt;ol&gt;
+      &lt;li&gt;将新服务器划入装机VLAN。&lt;/li&gt;
+      &lt;li&gt;根据资产清单上的MAC地址，自定义安装。
+        &lt;ol&gt;
+          &lt;li&gt;机柜&lt;/li&gt;
+          &lt;li&gt;机房区域&lt;/li&gt;
+          &lt;li&gt;机柜&lt;/li&gt;
+          &lt;li&gt;服务器位置&lt;/li&gt;
+          &lt;li&gt;服务器网线,接入端口&lt;/li&gt;
+          &lt;li&gt;该端口MAC地址&lt;/li&gt;
+          &lt;li&gt;操作系统，分区，预分配的IP地址 主机名 子网 网关 DNS 角色&lt;/li&gt;
+        &lt;/ol&gt;
+      &lt;/li&gt;
+      &lt;li&gt;自动化装机平台，安装&lt;/li&gt;
+    &lt;/ol&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;MAC:00:0C:29:0D:DB:36&lt;/li&gt;
+      &lt;li&gt;IP:192.168.56.12&lt;/li&gt;
+      &lt;li&gt;主机名：linux-node2.oldboyedu.com&lt;/li&gt;
+      &lt;li&gt;掩码：255.255.255.0&lt;/li&gt;
+      &lt;li&gt;网关：192.168.56.2&lt;/li&gt;
+      &lt;li&gt;DNS：192.168.56.2&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+&lt;pre&gt;
+cobbler system add --name=linux-node2.oldboyedu.com --mac=
+00:0C:29:0D:DB:36 --profile=CentOS-7-x86_64 \ --ip-addres=192.168.56.12 --subnet=255.255.255.0 --gateway=192.168.56.2  --interface=eth0 --static=1 --hostname=linux_noed2.oldboyedu.com --name-servers=&quot;192.168.56.2&quot;  --kickstart=/var/cobbler/kickstarts/CentOS-7-x86_64.cfg
+&lt;/pre&gt;
+
+&lt;h2 id=&quot;操作系统安装规范&quot;&gt;操作系统安装规范&lt;/h2&gt;
+&lt;ol&gt;
+  &lt;li&gt;当前我公司使用操作系统为CentOS 7和CentOS 6，均使用x86_64为系统，需要使用公司cobbler进行自动化安装，禁止自定义设置。&lt;/li&gt;
+  &lt;li&gt;版本选择，数据库统一使用Cobbler上CentOS-7-DB这个专用的profile，其他web应用统一使用cobbler上CentOS-7-web。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;##系统初始化规范&lt;/p&gt;
+
+&lt;h3 id=&quot;初始化操作&quot;&gt;初始化操作&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;设置DNS 192.168.56.111 192.168.56.112&lt;/li&gt;
+  &lt;li&gt;安装Zabbix Agent:Zabbix Server 192.168.56.11&lt;/li&gt;
+  &lt;li&gt;安装Saltstack Minion:Saltstack Master:192.168.56.11&lt;/li&gt;
+  &lt;li&gt;histroy记录时间&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre&gt;
+     export HSITTIMEFORMAT=&quot;%F %T `whoamin`&quot;
+&lt;/pre&gt;
+&lt;ul&gt;
+  &lt;li&gt;日志记录操作&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre&gt;
+     export PROMPT_COMMAND='{ msg=$(history 1 | { read x y; echo $y; });logger &quot;[euid=$(whoami)]&quot;:$(who am i):[`pwd`]&quot;$msg&quot;; }'
+&lt;/pre&gt;
+&lt;ul&gt;
+  &lt;li&gt;内核参数优化&lt;/li&gt;
+  &lt;li&gt;yum仓库&lt;/li&gt;
+  &lt;li&gt;主机名解析&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;目录规范&quot;&gt;目录规范&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;脚本放置目录：/opt/shell&lt;/li&gt;
+  &lt;li&gt;脚本日志目录：/opt/shell/log&lt;/li&gt;
+  &lt;li&gt;脚本锁文件目录：/opt/shell/lock
+    &lt;h3 id=&quot;服务安装规范&quot;&gt;服务安装规范&lt;/h3&gt;
+    &lt;ol&gt;
+      &lt;li&gt;源码安装路径 /usr/local/appname.sersion&lt;/li&gt;
+      &lt;li&gt;创建软连接 ln -s /usr/local/appname.version/ /usr/local/appname
+        &lt;h3 id=&quot;主机名命名规范&quot;&gt;主机名命名规范&lt;/h3&gt;
+      &lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;机房名称-项目-角色-集群-节点.域名&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;例子：
+     idc01-xxshop-nginx-bj-node1.shop.com&lt;/p&gt;
+&lt;h3 id=&quot;服务启动用户规范&quot;&gt;服务启动用户规范&lt;/h3&gt;
+
+&lt;p&gt;独有服务，统一使用www用户，UID为66，除负载均衡要监听80端口使用root启动外，所有服务必须使用www用户启动，使用大余1024的端口&lt;/p&gt;</content><author><name>chadwick</name><email>849231609@qq.com</email></author><category term="Linux" /><category term="CentOS" /><summary type="html">操作系统安装及初始化规范 v1.0 ##操作系统安装流程 服务器采购 服务器验收并设置raid 服务商提供验收单，运维验收负责人签字 服务器上架 资产录入 自动化安装 将新服务器划入装机VLAN。 根据资产清单上的MAC地址，自定义安装。 机柜 机房区域 机柜 服务器位置 服务器网线,接入端口 该端口MAC地址 操作系统，分区，预分配的IP地址 主机名 子网 网关 DNS 角色 自动化装机平台，安装 MAC:00:0C:29:0D:DB:36 IP:192.168.56.12 主机名：linux-node2.oldboyedu.com 掩码：255.255.255.0 网关：192.168.56.2 DNS：192.168.56.2 cobbler system add --name=linux-node2.oldboyedu.com --mac= 00:0C:29:0D:DB:36 --profile=CentOS-7-x86_64 \ --ip-addres=192.168.56.12 --subnet=255.255.255.0 --gateway=192.168.56.2 --interface=eth0 --static=1 --hostname=linux_noed2.oldboyedu.com --name-servers=&quot;192.168.56.2&quot; --kickstart=/var/cobbler/kickstarts/CentOS-7-x86_64.cfg 操作系统安装规范 当前我公司使用操作系统为CentOS 7和CentOS 6，均使用x86_64为系统，需要使用公司cobbler进行自动化安装，禁止自定义设置。 版本选择，数据库统一使用Cobbler上CentOS-7-DB这个专用的profile，其他web应用统一使用cobbler上CentOS-7-web。 ##系统初始化规范 初始化操作 设置DNS 192.168.56.111 192.168.56.112 安装Zabbix Agent:Zabbix Server 192.168.56.11 安装Saltstack Minion:Saltstack Master:192.168.56.11 histroy记录时间 export HSITTIMEFORMAT=&quot;%F %T `whoamin`&quot; 日志记录操作 export PROMPT_COMMAND='{ msg=$(history 1 | { read x y; echo $y; });logger &quot;[euid=$(whoami)]&quot;:$(who am i):[`pwd`]&quot;$msg&quot;; }' 内核参数优化 yum仓库 主机名解析 目录规范 脚本放置目录：/opt/shell 脚本日志目录：/opt/shell/log 脚本锁文件目录：/opt/shell/lock 服务安装规范 源码安装路径 /usr/local/appname.sersion 创建软连接 ln -s /usr/local/appname.version/ /usr/local/appname 主机名命名规范 机房名称-项目-角色-集群-节点.域名 例子： idc01-xxshop-nginx-bj-node1.shop.com 服务启动用户规范 独有服务，统一使用www用户，UID为66，除负载均衡要监听80端口使用root启动外，所有服务必须使用www用户启动，使用大余1024的端口</summary></entry><entry><title type="html">CentOS7系统初始化优化</title><link href="http://0.0.0.0:4000/2016/10/12/centos-7-system.html" rel="alternate" type="text/html" title="CentOS7系统初始化优化" /><published>2016-10-12T00:00:00+08:00</published><updated>2016-10-12T00:00:00+08:00</updated><id>http://0.0.0.0:4000/2016/10/12/centos-7-system</id><content type="html" xml:base="http://0.0.0.0:4000/2016/10/12/centos-7-system.html">&lt;p&gt;#CentOS7系统初始化优化
+##修改主机名配置主机名解析
+&lt;strong&gt;修改主机名&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;配置&lt;strong&gt;/etc/hostname&lt;/strong&gt;文件下写入需要命名的主机名，&lt;strong&gt;hostname&lt;/strong&gt;命令可以查看配置的主机名，退出登录，再重新登录后可以看到修改的新主机名。&lt;/p&gt;
+&lt;pre&gt;
+[root@localhost ~]# vi /etc/hostname
+linux-node01
+[root@linux-node01 ~]# hostname
+linux-node01
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;配置主机名解析&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;编辑配置文件&lt;strong&gt;/etc/hosts&lt;/strong&gt;，加入本机IP地址对应的主机名，使用&lt;strong&gt;ping&lt;/strong&gt;命令测试是否成功。&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ~]# vi /etc/hosts
+192.168.56.11 linux-node01
+[root@linux-node01 ~]# ping -c 3 linux-node01
+PING linux-node01 (192.168.56.11) 56(84) bytes of data.
+64 bytes from linux-node01 (192.168.56.11): icmp_seq=1 ttl=64 time=0.187 ms
+64 bytes from linux-node01 (192.168.56.11): icmp_seq=2 ttl=64 time=0.098 ms
+64 bytes from linux-node01 (192.168.56.11): icmp_seq=3 ttl=64 time=0.103 ms
+
+--- linux-node01 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2000ms
+rtt min/avg/max/mdev = 0.098/0.129/0.187/0.041 ms
+&lt;/pre&gt;
+&lt;p&gt;##关闭防火墙&lt;/p&gt;
+
+&lt;p&gt;测试方便使用，实际工作中如果需要使用防火墙，可以配置相应的规则，此步骤忽略。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;关闭防火墙，查看关闭是否成功（状态）&lt;/strong&gt;&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ~]# systemctl stop firewalld
+[root@linux-node01 ~]# systemctl status firewalld
+● firewalld.service - firewalld - dynamic firewall daemon
+   Loaded: loaded (/usr/lib/systemd/system/firewalld.service; enabled; vendor preset: enabled)
+   Active: inactive (dead) since Sat 2016-11-26 23:36:04 CST; 44s ago
+  Process: 1228 ExecStart=/usr/sbin/firewalld --nofork --nopid $FIREWALLD_ARGS (code=exited, status=0/SUCCESS)
+ Main PID: 1228 (code=exited, status=0/SUCCESS)
+
+Nov 26 23:05:35 localhost.localdomain systemd[1]: Starting firewalld - dynami....
+Nov 26 23:05:38 localhost.localdomain systemd[1]: Started firewalld - dynamic....
+Nov 26 23:36:04 linux-node01 systemd[1]: Stopping firewalld - dynamic firewal....
+Nov 26 23:36:04 linux-node01 systemd[1]: Stopped firewalld - dynamic firewall....
+Hint: Some lines were ellipsized, use -l to show in full.
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;移除出开启启动项&lt;/strong&gt;&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ~]# systemctl disable fire.service
+&lt;/pre&gt;
+&lt;p&gt;##配置关闭selinux
+一般不会使用selinux，工作中大多也是关闭的。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;注意&lt;/strong&gt;修改的时候不要修改错误了，不要修改&lt;strong&gt;SELINUXTYPE=targeted&lt;/strong&gt;,如果修改成这个，重启系统系统会起不来。&lt;/p&gt;
+
+&lt;p&gt;关闭的方法用多种，如：&lt;/p&gt;
+&lt;pre&gt;
+vi /etc/selinux/config
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+#     enforcing - SELinux security policy is enforced.
+#     permissive - SELinux prints warnings instead of enforcing.
+#     disabled - No SELinux policy is loaded.
+SELINUX=enforcing
+# SELINUXTYPE= can take one of three two values:
+#     targeted - Targeted processes are protected,
+#     minimum - Modification of targeted policy. Only selected processes are prot
+ected.
+#     mls - Multi Level Security protection.
+SELINUXTYPE=targeted
+&lt;/pre&gt;
+&lt;p&gt;或者使用sed命令替换&lt;/p&gt;
+&lt;pre&gt;
+sed -i 's#SELINUX=enforcing#SELINUX=disabled#g' /etc/selinux/config
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;临时使用命令关闭selinux&lt;/strong&gt;&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ~]# setenforce 0
+[root@linux-node01 ~]# getenforce 
+Permissive
+&lt;/pre&gt;
+&lt;p&gt;##创建用户，给用户sudo权限&lt;/p&gt;
+&lt;pre&gt;
+[root@linux-node01 ~]# useradd chadwick
+[root@linux-node01 ~]# echo &quot;123456&quot; | passwd --stdin chadwick
+Changing password for user chadwick.
+passwd: all authentication tokens updated successfully.
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;给用户设置sudo权限&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;有两种方法，使用vi命令编辑/etc/sudoers文件，或者使用echo命令追加&lt;/p&gt;
+&lt;pre&gt;
+echo &quot;chadwick ALL=(ALL) NOPASSWD=ALL&quot; &amp;gt;&amp;gt; /etc/sudoers
+grep chadwick /etc/sudoers
+visudo -c
+&lt;/pre&gt;
+&lt;p&gt;##内核常规优化&lt;/p&gt;
+&lt;pre&gt;
+cat &amp;gt;&amp;gt; /etc/sysctl.conf &amp;lt;&amp;lt; EOF
+net.ipv4.tcp_fin_timeout = 2
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_tw_recycle = 1
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_keepalive_time = 600
+net.ipv4.ip_local_port_range = 4000    65000
+net.ipv4.tcp_max_syn_backlog = 16384
+net.ipv4.tcp_max_tw_buckets = 36000
+net.ipv4.route.gc_timeout = 100
+net.ipv4.tcp_syn_retries = 1
+net.ipv4.tcp_synack_retries = 1
+net.core.wmem_default = 8388608
+net.core.rmem_default = 8388608
+net.core.wmem_max = 16777216
+net.core.rmem_max = 16777216
+EOF
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;确认内核优化成功&lt;/strong&gt;&lt;/p&gt;
+&lt;pre&gt;
+sysctl -p
+&lt;/pre&gt;
+&lt;p&gt;##时间同步
+根据实际情况来定，可以做时间服务器，同步时间，可以使用定时任务同步时间，以定时任务同步时间为例：&lt;/p&gt;
+&lt;pre&gt;
+yum install -y ntpdate
+[root@linux-node01 ~]# echo &quot;#Time sync 2016-11-16&quot; &amp;gt;&amp;gt;/var/spool/cron/root
+[root@linux-node01 ~]# echo &quot;*/5 * * * * /usr/sbin/ntpdate time.nist.gov &amp;gt;/dev/n
+ull 2&amp;gt;/&amp;amp;1&quot; &amp;gt;&amp;gt;/var/spool/cron/root 
+[root@linux-node01 ~]# crontab -l
+#Time sync 2016-11-16
+*/5 * * * * /usr/sbin/ntpdate time.nist.gov &amp;gt;/dev/null 2&amp;gt;/&amp;amp;1
+&lt;/pre&gt;
+&lt;p&gt;##调整文件描述符长度
+&lt;strong&gt;备注&lt;/strong&gt;使用&lt;strong&gt;ulimit -n&lt;/strong&gt;命令来查看文件描述符长度，默认是1024，修改需要reboot系统才能生效。&lt;/p&gt;
+&lt;pre&gt;
+echo &quot;*               -       nofile          65535 &quot; &amp;gt;&amp;gt;/etc/security/limits.conf
+&lt;/pre&gt;
+&lt;p&gt;##调整超时参数，命令历史记录，命令操作时间，操作日志记录
+&lt;strong&gt;调整超时时间和命令历史记录&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;超时参数会设置，命令历史记录长度和大小不一定设置，根据实际情况设置&lt;/p&gt;
+&lt;pre&gt;
+echo 'export TMOUT=300' &amp;gt;&amp;gt; /etc/profile
+ehco 'export HISTSIZE=5' &amp;gt;&amp;gt; /etc/profile
+echo 'export HISTFILESIZE=5' &amp;gt;&amp;gt; /etc/profile
+tail -3 /etc/profile
+. /etc/proflie
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;调整操作命令记录时间&lt;/strong&gt;&lt;/p&gt;
+&lt;pre&gt;
+echo 'export HSITTIMEFORMAT=&quot;%F %T `whoamin`&quot;' &amp;gt;&amp;gt; /etc/profile
+. /etc/profile
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;记录操作日志&lt;/strong&gt;&lt;/p&gt;
+&lt;pre&gt;
+echo 'export PROMPT_COMMAND='{ msg=$(history 1 | { read x y; echo $y; });logger &quot;[euid=$(whoami)]&quot;:$(who am i)[`pwd`]&quot;$msg&quot;; }''&amp;gt;&amp;gt;/etc/profile
+&lt;/pre&gt;
+&lt;p&gt;##调整ssh连接提高安全
+主要是改变默认端口22，可以调整为自己定义的端口，禁止root用户直接登录，禁止空密码登录，必须设置密码。&lt;/p&gt;
+
+&lt;p&gt;两种方法，一种使用vi命令到/etc/ssh/sshd_config中直接修改
+一种是使用sed命令直接追加&lt;/p&gt;
+&lt;pre&gt;
+sed -ir '13 iPort 50009\nPermitRootLogin no\nPermitEmptyPasswords no' /etc/ssh/sshd_config
+systemctl restart sshd
+&lt;/pre&gt;
+&lt;p&gt;##yum源调整
+官方yum源在国外，由于网速问题，一般都会调整yum源为阿里源&lt;/p&gt;
+
+&lt;p&gt;备份源&lt;/p&gt;
+&lt;pre&gt;
+\mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup
+&lt;/pre&gt;
+&lt;p&gt;调整为阿里源&lt;/p&gt;
+&lt;pre&gt;
+wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+&lt;/pre&gt;
+&lt;p&gt;添加第三方epel源&lt;/p&gt;
+
+&lt;p&gt;默认是没有的，不需要备份，如果以前有epel源，需要先备份在修改&lt;/p&gt;
+&lt;pre&gt;
+rpm -ivh http://mirrors.aliyun.com/epel/epel-release-latest-7.noarch.rpm
+&lt;/pre&gt;
+&lt;p&gt;##安装必备的软件&lt;/p&gt;
+&lt;pre&gt;
+yum install lrzsz nmap tree dos2unix nc telnet vim net-tools wget -y
+&lt;/pre&gt;
+&lt;p&gt;##更新系统重启系统&lt;/p&gt;
+&lt;pre&gt;
+yum upgrade
+reboot
+&lt;/pre&gt;
+&lt;p&gt;##CentOS无法使用tab不全功能解决办法
+CentOS7在使用最小化安装的时候，没有安装自动不全的包，需要手动安装。&lt;/p&gt;
+&lt;pre&gt;
+yum install bash-completion -y
+&lt;/pre&gt;
+&lt;p&gt;或者可以安装这些基本使用的包&lt;/p&gt;
+&lt;pre&gt;
+yum groupinstall Base Copatibility libraries Debugging Tools Dial-up Networking suppport Hardware monitoring utilities Performance Tools Devlopment tools
+&lt;/pre&gt;</content><author><name>chadwick</name><email>849231609@qq.com</email></author><category term="Linux" /><category term="CentOS" /><summary type="html">#CentOS7系统初始化优化 ##修改主机名配置主机名解析 修改主机名 配置/etc/hostname文件下写入需要命名的主机名，hostname命令可以查看配置的主机名，退出登录，再重新登录后可以看到修改的新主机名。 [root@localhost ~]# vi /etc/hostname linux-node01 [root@linux-node01 ~]# hostname linux-node01 配置主机名解析 编辑配置文件/etc/hosts，加入本机IP地址对应的主机名，使用ping命令测试是否成功。 [root@linux-node01 ~]# vi /etc/hosts 192.168.56.11 linux-node01 [root@linux-node01 ~]# ping -c 3 linux-node01 PING linux-node01 (192.168.56.11) 56(84) bytes of data. 64 bytes from linux-node01 (192.168.56.11): icmp_seq=1 ttl=64 time=0.187 ms 64 bytes from linux-node01 (192.168.56.11): icmp_seq=2 ttl=64 time=0.098 ms 64 bytes from linux-node01 (192.168.56.11): icmp_seq=3 ttl=64 time=0.103 ms --- linux-node01 ping statistics --- 3 packets transmitted, 3 received, 0% packet loss, time 2000ms rtt min/avg/max/mdev = 0.098/0.129/0.187/0.041 ms ##关闭防火墙 测试方便使用，实际工作中如果需要使用防火墙，可以配置相应的规则，此步骤忽略。 关闭防火墙，查看关闭是否成功（状态） [root@linux-node01 ~]# systemctl stop firewalld [root@linux-node01 ~]# systemctl status firewalld ● firewalld.service - firewalld - dynamic firewall daemon Loaded: loaded (/usr/lib/systemd/system/firewalld.service; enabled; vendor preset: enabled) Active: inactive (dead) since Sat 2016-11-26 23:36:04 CST; 44s ago Process: 1228 ExecStart=/usr/sbin/firewalld --nofork --nopid $FIREWALLD_ARGS (code=exited, status=0/SUCCESS) Main PID: 1228 (code=exited, status=0/SUCCESS) Nov 26 23:05:35 localhost.localdomain systemd[1]: Starting firewalld - dynami.... Nov 26 23:05:38 localhost.localdomain systemd[1]: Started firewalld - dynamic.... Nov 26 23:36:04 linux-node01 systemd[1]: Stopping firewalld - dynamic firewal.... Nov 26 23:36:04 linux-node01 systemd[1]: Stopped firewalld - dynamic firewall.... Hint: Some lines were ellipsized, use -l to show in full. 移除出开启启动项 [root@linux-node01 ~]# systemctl disable fire.service ##配置关闭selinux 一般不会使用selinux，工作中大多也是关闭的。 注意修改的时候不要修改错误了，不要修改SELINUXTYPE=targeted,如果修改成这个，重启系统系统会起不来。 关闭的方法用多种，如： vi /etc/selinux/config # This file controls the state of SELinux on the system. # SELINUX= can take one of these three values: # enforcing - SELinux security policy is enforced. # permissive - SELinux prints warnings instead of enforcing. # disabled - No SELinux policy is loaded. SELINUX=enforcing # SELINUXTYPE= can take one of three two values: # targeted - Targeted processes are protected, # minimum - Modification of targeted policy. Only selected processes are prot ected. # mls - Multi Level Security protection. SELINUXTYPE=targeted 或者使用sed命令替换 sed -i 's#SELINUX=enforcing#SELINUX=disabled#g' /etc/selinux/config 临时使用命令关闭selinux [root@linux-node01 ~]# setenforce 0 [root@linux-node01 ~]# getenforce Permissive ##创建用户，给用户sudo权限 [root@linux-node01 ~]# useradd chadwick [root@linux-node01 ~]# echo &quot;123456&quot; | passwd --stdin chadwick Changing password for user chadwick. passwd: all authentication tokens updated successfully. 给用户设置sudo权限 有两种方法，使用vi命令编辑/etc/sudoers文件，或者使用echo命令追加 echo &quot;chadwick ALL=(ALL) NOPASSWD=ALL&quot; &amp;gt;&amp;gt; /etc/sudoers grep chadwick /etc/sudoers visudo -c ##内核常规优化 cat &amp;gt;&amp;gt; /etc/sysctl.conf &amp;lt;&amp;lt; EOF net.ipv4.tcp_fin_timeout = 2 net.ipv4.tcp_tw_reuse = 1 net.ipv4.tcp_tw_recycle = 1 net.ipv4.tcp_syncookies = 1 net.ipv4.tcp_keepalive_time = 600 net.ipv4.ip_local_port_range = 4000 65000 net.ipv4.tcp_max_syn_backlog = 16384 net.ipv4.tcp_max_tw_buckets = 36000 net.ipv4.route.gc_timeout = 100 net.ipv4.tcp_syn_retries = 1 net.ipv4.tcp_synack_retries = 1 net.core.wmem_default = 8388608 net.core.rmem_default = 8388608 net.core.wmem_max = 16777216 net.core.rmem_max = 16777216 EOF 确认内核优化成功 sysctl -p ##时间同步 根据实际情况来定，可以做时间服务器，同步时间，可以使用定时任务同步时间，以定时任务同步时间为例： yum install -y ntpdate [root@linux-node01 ~]# echo &quot;#Time sync 2016-11-16&quot; &amp;gt;&amp;gt;/var/spool/cron/root [root@linux-node01 ~]# echo &quot;*/5 * * * * /usr/sbin/ntpdate time.nist.gov &amp;gt;/dev/n ull 2&amp;gt;/&amp;amp;1&quot; &amp;gt;&amp;gt;/var/spool/cron/root [root@linux-node01 ~]# crontab -l #Time sync 2016-11-16 */5 * * * * /usr/sbin/ntpdate time.nist.gov &amp;gt;/dev/null 2&amp;gt;/&amp;amp;1 ##调整文件描述符长度 备注使用ulimit -n命令来查看文件描述符长度，默认是1024，修改需要reboot系统才能生效。 echo &quot;* - nofile 65535 &quot; &amp;gt;&amp;gt;/etc/security/limits.conf ##调整超时参数，命令历史记录，命令操作时间，操作日志记录 调整超时时间和命令历史记录 超时参数会设置，命令历史记录长度和大小不一定设置，根据实际情况设置 echo 'export TMOUT=300' &amp;gt;&amp;gt; /etc/profile ehco 'export HISTSIZE=5' &amp;gt;&amp;gt; /etc/profile echo 'export HISTFILESIZE=5' &amp;gt;&amp;gt; /etc/profile tail -3 /etc/profile . /etc/proflie 调整操作命令记录时间 echo 'export HSITTIMEFORMAT=&quot;%F %T `whoamin`&quot;' &amp;gt;&amp;gt; /etc/profile . /etc/profile 记录操作日志 echo 'export PROMPT_COMMAND='{ msg=$(history 1 | { read x y; echo $y; });logger &quot;[euid=$(whoami)]&quot;:$(who am i)[`pwd`]&quot;$msg&quot;; }''&amp;gt;&amp;gt;/etc/profile ##调整ssh连接提高安全 主要是改变默认端口22，可以调整为自己定义的端口，禁止root用户直接登录，禁止空密码登录，必须设置密码。 两种方法，一种使用vi命令到/etc/ssh/sshd_config中直接修改 一种是使用sed命令直接追加 sed -ir '13 iPort 50009\nPermitRootLogin no\nPermitEmptyPasswords no' /etc/ssh/sshd_config systemctl restart sshd ##yum源调整 官方yum源在国外，由于网速问题，一般都会调整yum源为阿里源 备份源 \mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.backup 调整为阿里源 wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo 添加第三方epel源 默认是没有的，不需要备份，如果以前有epel源，需要先备份在修改 rpm -ivh http://mirrors.aliyun.com/epel/epel-release-latest-7.noarch.rpm ##安装必备的软件 yum install lrzsz nmap tree dos2unix nc telnet vim net-tools wget -y ##更新系统重启系统 yum upgrade reboot ##CentOS无法使用tab不全功能解决办法 CentOS7在使用最小化安装的时候，没有安装自动不全的包，需要手动安装。 yum install bash-completion -y 或者可以安装这些基本使用的包 yum groupinstall Base Copatibility libraries Debugging Tools Dial-up Networking suppport Hardware monitoring utilities Performance Tools Devlopment tools</summary></entry></feed>

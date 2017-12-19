@@ -1,0 +1,349 @@
+<!DOCTYPE html><html lang="zh">
+  <head><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"><title>GitHub使用方法 - Maihill's blog</title>
+<meta name="description" content="#Github使用方法##注册账户和创建仓库要先使用Github第一步当然是注册账号了，进入Github,之后就可以创建仓库了（免费用户只能创建公共仓库）Certe a New Repository，填好名称后Create，之后会出现一些仓库的配置信息等。##安装客户端进入Github下载安装即可。##Git配置...">
+<link rel="canonical" href="http://0.0.0.0:4000/2017/12/18/Github.html"><link rel="alternate" type="application/rss+xml" title="Maihill's blog" href="http://0.0.0.0:4000/feed.xml">
+<!-- for Safari on iOS https://developer.apple.com/ios/human-interface-guidelines/icons-and-images/app-icon/ --><link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logo/icon-180x180.png"><link rel="apple-touch-icon" sizes="167x167" href="/assets/images/logo/icon-167x167.png"><link rel="apple-touch-icon" sizes="152x152" href="/assets/images/logo/icon-152x152.png"><link rel="apple-touch-icon" sizes="120x120" href="/assets/images/logo/icon-120x120.png"><link rel="shortcut icon" href="/assets/images/logo/icon-120x120.png">
+<!-- for Chrome on Android https://developer.chrome.com/multidevice/android/installtohomescreen -->
+<meta name="mobile-web-app-capable" content="yes"><link rel="icon" sizes="192x192" href="/assets/images/logo/icon-192x192.png">
+<!-- for Edge on Windows 10 https://msdn.microsoft.com/en-us/library/dn255024(v=vs.85).aspx --><meta name="msapplication-TileImage" content="/assets/images/logo/icon-144x144.png"><meta name="msapplication-square310x310logo" content="/assets/images/logo/icon-310x310.png"><meta name="msapplication-wide310x150logo" content="/assets/images/logo/icon-310x150.png"><meta name="msapplication-square150x150logo" content="/assets/images/logo/icon-150x150.png"><meta name="msapplication-square70x70logo" content="/assets/images/logo/icon-70x70.png">
+<meta name="msapplication-TileColor" content="#eeeeee"><link rel="stylesheet" href="/assets/css/blog.css">
+    <style></style>
+    <script src="//cdn.bootcss.com/jquery/3.1.1/jquery.min.js"></script></head>
+  <body>
+    <div class="m-page-stage js-page-stage"><div class="m-page-content"><header class="m-page-header main clearfix"><a class="site-title" title="Maihill's Blog
+" href="/">Maihill's blog</a><div class="site-logo"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="24px" height="24px" viewBox="0 0 24 24">
+<style type="text/css">
+	.st0{fill:#666666;}
+</style>
+<path class="st0" d="M1.7,22.3c5.7-5.7,11.3-5.7,17,0c3.3-3.3,3.5-5.3,0.8-6c2.7,0.7,3.5-1.1,2.3-5.6s-3.3-5.2-6.3-2.1
+	c3-3,2.3-5.2-2.1-6.3S7,1.8,7.7,4.6C7,1.8,5,2.1,1.7,5.3C7.3,11,7.3,16.7,1.7,22.3"/>
+</svg></div>
+  <nav>
+    <ul class="inline-list"><li><a href="/">主页</a></li><li><a href="/all.html">归档</a></li><li><a href="/about.html">关于</a></li><li><a type="application/rss+xml" href="/feed.xml">RSS</a></li>
+    </ul>
+  </nav>
+</header>
+<div class="m-page-main"><div class="m-post">
+	<div class="main js-main">
+		<div class="col-1">
+			<article itemscope itemtype="http://schema.org/BlogPosting">
+				<meta itemprop="mainEntityOfPage" itemscope itemType="https://schema.org/WebPage"/>
+				<header class="article-header"><h1 itemprop="headline" itemprop="name headline">GitHub使用方法</h1><div class="m-article-data clearfix"><meta itemprop="author" itemscope itemtype="https://schema.org/Person"><meta itemprop="name" content="chadwick"/></meta><ul class="inline-list tag-wrapper"><li>
+          <a class="round-rect-button" href="/all.html?tag=git">git</a>
+        </li></ul><div class="other-wrapper"><div class="date-wrapper"><time class="article-meta" datetime="2017-12-18T00:00:00+08:00"
+          itemprop="datePublished">2017年 12月18日
+        </time></div>
+  </div>
+</div>
+</header>
+				<div class="m-article-content js-article-content" itemprop="articleBody"><p>#Github使用方法
+##注册账户和创建仓库
+要先使用Github第一步当然是注册账号了，进入<a href="https://github.com/">Github</a>,之后就可以创建仓库了（免费用户只能创建公共仓库）Certe a New Repository，填好名称后Create，之后会出现一些仓库的配置信息等。
+##安装客户端
+进入<a href="https://github-for-windows.en.softonic.com/">Github</a>下载安装即可。
+##Git配置
+右键Git Bash进入git命令行，为了把本地仓库传到github上，还需要配置ssh key。
+首先在本地创建ssh key：</p>
+<pre>
+$ ssh-keygen -t rsa -C "849231609@qq.com"
+Generating public/private rsa key pair.
+Enter file in which to save the key (/c/Users/xl/.ssh/id_rsa):
+Created directory '/c/Users/xl/.ssh'.
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /c/Users/xl/.ssh/id_rsa.
+Your public key has been saved in /c/Users/xl/.ssh/id_rsa.pub.
+The key fingerprint is:
+SHA256:NhLKKbyUqgcckqnjnGFcZ+kle6euoM5TsCY/q2+2fcs 849231609@qq.com
+The key's randomart image is:
++---[RSA 2048]----+
+|                 |
+|                 |
+| o    o          |
+|++ + B o         |
+|= X B = S        |
+|=X + o + o       |
+|B+=.  . o        |
+|o=B.....         |
+|+X=+.oEo         |
++----[SHA256]-----+
+
+</pre>
+<p>后面的email改为注册的邮箱即可，之后会要求确认路径和输入密码，使用默认的一路回车就行，成功的话会在~/生成.ssh的文件夹，进入文件夹，打开id_rsa.pub，复制里面的key。</p>
+<pre>
+cd ~/.ssh
+$ ls
+id_rsa  id_rsa.pub
+$ cat id_rsa.pub
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDEHhdxb5FmCnn0dHhuo0cfDbmkAPhSQaWvIJXDpB4iXCuMGnUDs8hz7ykKkr0h5WGrhSJnuh7nmqm42Lo6iH6WMnNEnGf8SB6q7b0CS5Cr8+OyWGKqhtcASbaxTSjBVBD4TnlBag/GK5X8/NX3v99ZYupej65NDvs9ZvySdaqv15Gp1h4FEkjcU1nEDT7EwJeJTouOG6dUGvU7sKEhNggggmy8OVrwJX4Cis5UwHOfiAFgjasGCLI1G5xdT5kqMCn+m49GOy3V6fI+169QcFxZTuxFU3WZ+IfMo2J9duUQMDmxdXE0vxFZlUUhTkQ9+pydiFjvl+MCoDhGWuDTjlhv 849231609@qq.com
+</pre>
+<p>回到github，进入Settings===&gt;SSH and GPG keys===&gt;New SSH key===&gt; Title(自定义)===&gt;Key(复制cat id_rsa.pub的密钥)===&gt;Add SSH key</p>
+
+<p>为了验证是否成功，在git bash输入</p>
+<pre>
+$ ssh -T git@github.com
+The authenticity of host 'github.com (192.30.253.113)' can't be established.
+RSA key fingerprint is SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'github.com,192.30.253.113' (RSA) to the list of known hosts.
+Permission denied (publickey).
+</pre>
+<p>第一次运行会提示，是否continue，输入yes，出现以上结果表示成功连接github。</p>
+
+<p>本地仓库上传到github上去，在上传之前还需要设置username和email，github每次commit都会记录usernameheemail。</p>
+<pre>
+$ git config --global user.name "xingdingchun"
+$ git config --global user.email "849231609@qq.com"
+</pre>
+<p>把刚刚创建好的github的仓库下载到本地</p>
+<pre>
+$ git clone https://github.com/xingdingchun/chadwick
+Cloning into 'chadwick'...
+remote: Counting objects: 17, done.
+remote: Compressing objects: 100% (15/15), done.
+remote: Total 17 (delta 3), reused 8 (delta 0), pack-reused 0
+Unpacking objects: 100% (17/17), done.
+$ ls
+chadwick/
+$ cd chadwick
+$ ls -a
+./  ../  .git/  centos.md  README.md
+$ cd .git/
+$ ls
+config       HEAD    index  logs/     packed-refs
+description  hooks/  info/  objects/  refs/
+$ cat config
+[core]
+        repositoryformatversion = 0
+        filemode = false
+        bare = false
+        logallrefupdates = true
+        symlinks = false
+        ignorecase = true
+[remote "origin"]
+        url = https://github.com/xingdingchun/chadwick
+        fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "master"]
+        remote = origin
+        merge = refs/heads/master
+</pre>
+<p>上传到github：</p>
+<pre>
+$ cd chadwick
+$ git init
+Reinitialized existing Git repository in D:/Github chadwick/.git/
+$ git remote add origin https://github.com/xingdingchun/chadwick
+$ git push origin master
+Everything up-to-date
+</pre>
+<p>执行$ git remote add origin https://github.com/xingdingchun/chadwick出错</p>
+<pre>
+git remote rm  oringin
+git pull origin master
+</pre>
+<p>##提交上传下载命令
+更换目录使用git add .
+git push命令会将本地仓库推送到远程服务器
+git pull命令则相反，把远程服务器上的仓库同步到本地</p>
+<pre>
+$ git push origin master
+Everything up-to-date
+$ git pull origin master
+fatal: unable to access 'https://github.com/xingdingchun/chadwick/': Empty reply from server
+</pre>
+<p>##.gitignore文件
+.gitignore顾名思义就是告诉git需要忽略的文件，这是一个很重要并且和实用的文件，一般我们写代码后会执行编译，这期间会产生很多中间文件和可执行文件，这些都不是代码文件，是不需要git来管理的，但是我们git status的时候回看到很多这样的文件，如果用git add -A来添加的话会把他们都加进去，二手动一个一个的添加也太麻烦，这时就需要.gitignore，如：在一个项目中.gitignore是这样写的：</p>
+
+<p>bin</p>
+
+<p>*.suo</p>
+
+<p>obj</p>
+
+<p>bin和obj是编译目录，里面都不是代码，回来；suo文件是配置文件不需要，git status时只会看到源代码，可以放心的git add -A。
+##tag
+可以创建一个tag来指向软件开发中的一个关键时期，比如版本更新的时候可以建一个“v2.0”之列的标签，这样回顾的时候回比较方便，tag的使用主要是查看tag，创建tag，验证tag以及共享tag</p>
+
+<p>##提交的方法
+提交目录下执行</p>
+<pre>
+git add .
+git commit -m 'filename'
+git push origin master
+</pre>
+</div>
+				<footer><meta itemprop="dateModified" content="2017-12-18T00:00:00+08:00"><div class="article-license"><!--
+<div class="m-license"><div class="clearfix"><p>本文遵守 <a rel="license" href="https://blog.maihill.com">Maihill</a> 许可协议。</p><a class="license" rel="license" href="https://blog.maihill.com">
+      <img alt="Creative Commons License" src="/assets/images/license-cc4.png" />
+    </a><p>欢迎转载，转载需注明出处，且禁止用于商业目的。</p>
+  </div>
+</div> -->
+</div>
+				</footer><section></section></article>
+		</div>
+		<div class="col-2">
+			<aside class="js-article-aside"><div class="m-toc js-toc"></div></aside>
+		</div>
+	</div>
+</div>
+
+<script src="//cdn.bootcss.com/toc/0.3.2/toc.min.js"></script>
+<script type="text/javascript">
+	window.throttle = function(func, wait) {
+	  var args, result, thisArg, timeoutId, lastCalled = 0;
+
+	  function trailingCall() {
+	    lastCalled = new Date;
+	    timeoutId = null;
+	    result = func.apply(thisArg, args);
+	  }
+	  return function() {
+	    var now = new Date,
+	      remaining = wait - (now - lastCalled);
+
+	    args = arguments;
+	    thisArg = this;
+
+	    if (remaining <= 0) {
+	      clearTimeout(timeoutId);
+	      timeoutId = null;
+	      lastCalled = now;
+	      result = func.apply(thisArg, args);
+	    } else if (!timeoutId) {
+	      timeoutId = setTimeout(trailingCall, remaining);
+	    }
+	    return result;
+	  };
+	}
+	$(function() {
+	  var $window = $(window);
+	  var $pageStage = $('.js-page-stage');
+	  var $pageMain = $('.js-main');
+	  var $pageFooter = $('.js-page-footer');
+	  var $articleContent = $('.js-article-content');
+	  var $articleAside = $('.js-article-aside');
+	  var $toc = $('.js-toc');
+	  var hasTitle = $articleContent.find('h1, h2, h3').length > 0;
+
+	  function asideSticky() {
+	    return $window.outerWidth() > 1150 && $pageStage.hasClass('has-toc');
+	  }
+
+	  function setTocClass() {
+	    if (hasTitle) {
+	      !$pageStage.hasClass('has-toc') && $pageStage.addClass('has-toc');
+	    }
+	  }
+
+	  setTocClass();
+
+	  function setAsideTOC() {
+	    var asideTop, asideLeft, scrollBottom, asideBottomTop, lastScrollTop;
+
+	    function init() {
+	      var asideOffset = $articleAside.offset();
+	      var footerOffset = $pageFooter.offset();
+	      var mainOffset = $pageMain.offset();
+	      asideTop = mainOffset.top;
+	      asideHeight = $toc.outerHeight() + parseInt($articleAside.css('padding-top'), 10) + parseInt($articleAside.css('padding-bottom'), 10);
+	      asideLeft = mainOffset.left + $pageMain.outerWidth() - $articleAside.outerWidth() - parseInt($pageMain.css('padding-right'), 10);
+	      scrollBottom = footerOffset.top - asideHeight;
+	      asideBottomTop = scrollBottom - mainOffset.top;
+	    }
+
+	    function setAside(force) {
+	      force !== true && (force = false);
+	      var scrollTop = $window.scrollTop();
+	      if (scrollTop >= asideTop && scrollTop <= scrollBottom) {
+	        (!force && lastScrollTop >= asideTop && lastScrollTop <= scrollBottom) ||
+	        $articleAside.addClass('fixed').css({
+	          left: asideLeft + 'px',
+	          top: 0
+	        });
+	      } else if (scrollTop < asideTop) {
+	        (!force && lastScrollTop < asideTop) ||
+	        $articleAside.removeClass('fixed').css({
+	          left: 0,
+	          top: 0
+	        });
+	      } else {
+	        (!force && lastScrollTop > scrollBottom) ||
+	        $articleAside.removeClass('fixed').css({
+	          left: 0,
+	          top: asideBottomTop + 'px'
+	        });
+	      }
+	      lastScrollTop = scrollTop;
+	    }
+	    asideSticky() && (init(), setAside());
+	    $window.on('scroll', function() {
+	      asideSticky() && setAside();
+	    });
+	    $window.on('resize', throttle(function() {
+	      setTocClass();
+	      asideSticky() && (init(), setAside(true));
+	    }, 100));
+	    setTimeout(init, 4000);
+	  }
+	  setTimeout(setAsideTOC, 1000);
+
+	  $toc.toc({
+	    'selectors': 'h1,h2,h3',
+	    'container': '.js-article-content',
+	  });
+	});
+</script></div>
+</div>
+</div><div class="m-page-footer js-page-footer">
+  <div class="main">
+    <aside><div class="follow-me"><ul class="inline-list" itemscope itemtype="http://schema.org/Person">
+    <meta itemprop="name" content="chadwick">
+    <link itemprop="url" href="http://0.0.0.0:4000/"><li title="在 Facebook 上关注我。">
+        <div class="round-button facebook">
+          <a itemprop="sameAs" href="https://www.facebook.com/chadwick" target="_blank">
+            <div class="icon"><svg fill="#000000" width="24px" height="24px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <path d="M767.428571 6.857143l0 150.857143-89.714286 0q-49.142857 0-66.285714 20.571429t-17.142857 61.714286l0 108 167.428571 0-22.285714 169.142857-145.142857 0 0 433.714286-174.857143 0 0-433.714286-145.714286 0 0-169.142857 145.714286 0 0-124.571429q0-106.285714 59.428571-164.857143t158.285714-58.571429q84 0 130.285714 6.857143z" />
+</svg></div>
+          </a>
+        </div>
+      </li><li title="在 Twitter 上关注我。">
+        <div class="round-button twitter">
+          <a itemprop="sameAs" href="https://twitter.com/chadwick" target="_blank">
+            <div class="icon"><svg fill="#000000" width="24px" height="24px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <path d="M1024.032 194.432c-37.664 16.704-78.176 28-120.672 33.088 43.36-26.016 76.672-67.168 92.384-116.224-40.608 24.064-85.568 41.568-133.408 50.976-38.336-40.832-92.928-66.336-153.344-66.336-116.032 0-210.08 94.048-210.08 210.08 0 16.48 1.856 32.512 5.44 47.872-174.592-8.768-329.408-92.416-433.024-219.52-18.08 31.04-28.448 67.104-28.448 105.632 0 72.896 37.088 137.184 93.472 174.88-34.432-1.088-66.816-10.528-95.168-26.272-0.032 0.864-0.032 1.76-0.032 2.656 0 101.792 72.416 186.688 168.512 205.984-17.632 4.8-36.192 7.36-55.36 7.36-13.536 0-26.688-1.312-39.52-3.776 26.72 83.456 104.32 144.192 196.256 145.888-71.904 56.352-162.496 89.92-260.928 89.92-16.96 0-33.664-0.992-50.112-2.944 92.96 59.616 203.392 94.4 322.048 94.4 386.432 0 597.728-320.128 597.728-597.76 0-9.12-0.192-18.176-0.608-27.168 41.056-29.632 76.672-66.624 104.832-108.736z" />
+</svg>
+</div>
+          </a>
+        </div>
+      </li><li title="在 Github 上关注我。">
+        <div class="round-button github">
+          <a itemprop="sameAs" href="https://github.com/xingdingchun" target="_blank">
+            <div class="icon"><svg fill="#000000" width="24px" height="24px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <path class="svgpath" data-index="path_0" fill="#272636" d="M0 525.2c0 223.6 143.3 413.7 343 483.5 26.9 6.8 22.8-12.4 22.8-25.4l0-88.7c-155.3 18.2-161.5-84.6-172-101.7-21.1-36-70.8-45.2-56-62.3 35.4-18.2 71.4 4.6 113.1 66.3 30.2 44.7 89.1 37.2 119 29.7 6.5-26.9 20.5-50.9 39.7-69.6C248.8 728.2 181.7 630 181.7 513.2c0-56.6 18.7-108.7 55.3-150.7-23.3-69.3 2.2-128.5 5.6-137.3 66.5-6 135.5 47.6 140.9 51.8 37.8-10.2 80.9-15.6 129.1-15.6 48.5 0 91.8 5.6 129.8 15.9 12.9-9.8 77-55.8 138.8-50.2 3.3 8.8 28.2 66.7 6.3 135 37.1 42.1 56 94.6 56 151.4 0 117-67.5 215.3-228.8 243.7 26.9 26.6 43.6 63.4 43.6 104.2l0 128.8c0.9 10.3 0 20.5 17.2 20.5C878.1 942.4 1024 750.9 1024 525.3c0-282.9-229.3-512-512-512C229.1 13.2 0 242.3 0 525.2L0 525.2z" />
+</svg>
+</div>
+          </a>
+        </div>
+      </li></ul><p class="email">
+      <a title="给我发邮件。" href="mailto:849231609@qq.com" target="_self">849231609@qq.com</a>
+    </p></div>
+</aside>
+    <footer class="site-info">
+      <p>© Maihill's blog 2015 - 2017</p>
+      <p>友情链接 <a title="运维社区" href="https://www.unixhot.com/">运维社区</a> & <a
+        title="刘立亚" href="https://www.liuliya.com/">刘立亚</a> & <a title="环媒股份" href="http://huanmedia.com/">环媒股份</a>.</p>
+    </footer>
+  </div>
+</div>
+<script>
+      $(function() {
+        // display coding language
+        $(".highlight").each(function() {
+          $(this).attr("data-lang", $(this).find("code").attr("data-lang"));
+        });
+      });
+    </script></body>
+</html>
