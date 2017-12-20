@@ -46,9 +46,11 @@ timezone: Asia/Shanghai #see https://en.wikipedia.org/wiki/List_of_tz_database_t
 author:
   name: chadwick
   email: 849231609@qq.com  #your Email address e.g. someone@site.com
-  facebook: chadwick #your Facebook username
-  twitter: chadwick #your Twitter username
+  facebook: #your Facebook username
+  twitter: #your Twitter username
   github: xingdingchun #your GitHub username
+  qq: 849231609
+  weixin: xingdingchun 
   googleplus:   #your Google+ username
   weibo: #your Weibo username
   douban:  #your Douban username
