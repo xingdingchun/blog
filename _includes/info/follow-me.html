@@ -68,6 +68,15 @@
       </li>
     {%- endif -%}
   </ul>
+    {%- endif -%}
+    {%- if site.author.weixin -%}
+      <li title="{{ __return | replace: '[NAME]', 'weixin' }}">
+        <div class="round-button weixin">
+          <a itemprop="sameAs" href="https://blog.maihill.com/assets/images/woweixin.jpg">
+            <div class="icon">{%- include icon/social/weixin.svg -%}</div>
+          </a>
+        </div>
+      </li>
   {%- if site.author.email -%}
   {%- assign __locale = site.data.locale.EMAIL_ME -%}
   {%- include snippets/locale-to-string.html -%}
