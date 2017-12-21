@@ -11,6 +11,5 @@ key: page-about
 >
 >**最美好的生活方式,不是躺在床上睡到自然醒,也不是坐在家里无所事事,更不是走在街上随意购物；而是，和一群志同道合的人，一起奔跑在理想的路上，回头有一路的故事，低头有坚定的脚步，抬头有清晰的远方！**
 
-    
-
-  
+![about01](https://blog.maihill.com/assets/images/about/about01.jpg "about01")
+![about02](https://blog.maihill.com/assets/images/about/about02.jpg "about02")
