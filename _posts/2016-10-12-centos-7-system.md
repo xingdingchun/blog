@@ -58,7 +58,7 @@ Nov 26 23:36:04 linux-node01 systemd[1]: Stopped firewalld - dynamic firewall...
 Hint: Some lines were ellipsized, use -l to show in full.
 </pre>
 
-### 移除出开启启动项
+### 移除出开机启动项
 <pre>
 [root@linux-node01 ~]# systemctl disable fire.service
 </pre>
