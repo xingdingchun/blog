@@ -38,8 +38,13 @@ server {
 
 访问网站
 
-浏览器访问https://www.maihill.com正确，http://www.maihill.com报错如下
+
+浏览器访问https://www.maihill.com正确，http://www.maihill.com报错如下:
+
+
 ![http_error](https://blog.maihill.com/assets/images/pic/nginx/http_error.png "http_error")
+
+
 
 ### 问题解决
 
