@@ -212,12 +212,6 @@ True
 
 ## while循环
 
-while循环结构：
-
-while  条件：
-
-    print("any")
-
 
 **简单while循环代码：**
 
