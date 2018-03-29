@@ -193,7 +193,7 @@ C:\Python36\python.exe G:/new/fullstack_s2/week4/practice/Set.py
 
 ### 集合操作
 
-#### 创建集合
+#### 创建集合(frozenset是不可变集合创建，set是可变集合创建)
 
 <pre>
 set_one = set('chadwick')
@@ -251,7 +251,7 @@ chris
 chadwick
 </pre>
 
-#### add增加
+#### add增加(整体增加，增加的内容作为一个整体增加到集合中)
 
 <pre>
 # 添加
@@ -268,7 +268,7 @@ C:\Python36\python.exe G:/new/fullstack_s2/week4/practice/Set.py
 {'chris', 'pony', 'chadwick', 'donny', 'kevin'}
 </pre>
 
-#### 更新updae
+#### 更新updae(单个增加，会查分增加的内容为单个元素增加)
 
 <pre>
 list_one = ['chadwick','chris','kevin','pony']
@@ -548,6 +548,8 @@ Sex: girl
 
 #### 不定长参数*args
 
+> 无命名参数，内部做成元组
+
 <pre>
 # 不定长参数一
 # 加法器
@@ -570,7 +572,28 @@ C:\Python36\python.exe G:/new/fullstack_s2/week4/practice/function.py
 21
 </pre>
 
+#### 传入的实参是list数据类型处理方法
+
+<pre>
+def valuse_test(*args):
+    print(args)
+# 元组内部([1, 2, 3], ['chadwick', 'chris'])
+# 把列表作为一个元素存入元组中
+#valuse_test([1,2,3],['chadwick','chris'])
+# list 每个元素作为元素存入元组中
+valuse_test(*[1,2,3,4,],*['chadwick','chris'])
+</pre>
+
+代码执行效果
+
+<pre>
+C:\Python36\python.exe G:/new/fullstack_s2/week4/practice/function.py
+(1, 2, 3, 4, 'chadwick', 'chris')
+</pre>
+
 #### 不定长参数**kwagrs
+
+> 有命名参数(键值对)，内部自动做成字典数据类型
 
 <pre>
 # 解决出入多个参数问题
@@ -601,19 +624,142 @@ job:IT
 habby:book
 </pre>
 
+#### 传入实参是字典数据类型处理方法
+
+<pre>
+def dict_valuse(**kwargs):
+    print(kwargs)
+# 报错
+# dict_valuse({'name':'chadwick','age':30},{'name':'chris'})
+dict_valuse(info={'name':'chris'})
+dict_valuse(**{'name':'chadwick','age':30},**{'sichuan':35})
+</pre>
+
+代码执行效果
+
+<pre>
+C:\Python36\python.exe G:/new/fullstack_s2/week4/practice/function.py
+{'info': {'name': 'chris'}}
+{'name': 'chadwick', 'age': 30, 'sichuan': 35}
+</pre>
+
 ### 参数顺序总结
 
 > 关键参数 <=== 默认参数 <=== *args <=== **kwargs
 
+### 函数返回值return
+
+> 作用：
+> 
+> 1.结束函数
+>
+> 2.放回一个对象
+
+#### return中断函数
+
+<pre>
+def return_test():
+    print("OK")
+    return 10 # return 已经结束函数
+    print("Chadwick") #不会执行
+return_test()
+print(return_test()) # 返回一个对象
+</pre>
+
+代码执行效果
+
+<pre>
+C:\Python36\python.exe G:/new/fullstack_s2/week4/practice/function.py
+OK
+OK
+10
+</pre>
+
+#### 不写return默认返回None
+
+<pre>
+def return_test():
+    print("OK")
+
+print(return_test())
+</pre>
+
+代码执行效果
+
+<pre>
+C:\Python36\python.exe G:/new/fullstack_s2/week4/practice/function.py
+OK
+None
+</pre>
+
+#### 返回多个值，自动做成一个元组类型
+
+<pre>
+def many_return(*args):
+    sum = 0
+    for i in args:
+        sum += i
+    return sum
+print(many_return(2,3,4,5,))
+
+def many_foo():
+    # 返回多个值，自动做成一个元组
+    return 1,'chadwick','chris',23,56
+print(many_foo())
+</pre>
+
+代码执行效果
+
+<pre>
+C:\Python36\python.exe G:/new/fullstack_s2/week4/practice/function.py
+14
+(1, 'chadwick', 'chris', 23, 56)
+</pre>
+
+### 函数的作用域
+
+> 作用域优先级 local 本地变量优先级最高，其次是外层变量，再其次是全局变量，最后是Python内建如int等。
+> 
+> 如果需要在函数内部使用全局变量使用global 和 nonlocal关键字调整。
+
+<pre>
+# number = int(2,3) # build-in int 是Python内置变量
+g_count = 'chadwick' # 自定义全局变量 global
+
+def outer():
+    o_count = 10
+    def inner():
+        i_count = 20
+        print(i_count)
+    inner()
+outer()
+
+# 解决函数内部使用全局变量问题
+
+global_valuse = 80
+
+def func_outer():
+    oen_valuse = 70 # 自定义变量
+    global global_valuse # 申明变量是全局变量
+    print(global_valuse)
+    global_valuse = 10
+    def func_inner():
+        i_valuse = 60 # 自定义变量
+        nonlocal oen_valuse #申明变量是上一级函数中的比那里
+        print(oen_valuse)
+        oen_valuse = 20
+        print(oen_valuse)
+        print(i_valuse)
 
 
+func_outer()
+</pre>
 
+代码执行效果
 
-
-
-
-
-
-
-
+<pre>
+C:\Python36\python.exe G:/new/fullstack_s2/week4/practice/function.py
+20
+80
+</pre>
 
