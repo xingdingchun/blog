@@ -48,7 +48,7 @@ import sys
 print(sys.version)
 </pre>
 
-# 代码执行效果：
+#### 代码执行效果：
 
 <pre>
 C:\Python36\python.exe G:/new/fullstack_s2/week4/day18/sys_hashlib_configparser.py
