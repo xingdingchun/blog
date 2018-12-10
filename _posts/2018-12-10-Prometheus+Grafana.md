@@ -55,14 +55,13 @@ rule_files:
 scrape_configs:
   # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
   - job_name: 'prometheus'
-
     # metrics_path defaults to '/metrics'
     # scheme defaults to 'http'.
-
     static_configs:
     - targets: ['192.168.62.243:9090','192.168.62.243:9100','192.168.62.254:9100','192.168.62.254:8080','192.168.62.243:8080','192.168.62.253:8080']
     # 主要是修改这个地方，添加需要监控的项目
 </pre>
+
 **启动prometheus：**
 <pre>./prometheus --config.file="/usr/local/prometheus/prometheus.yml" &</pre>
 **查看是否启动成功：**
