@@ -32,15 +32,6 @@ tags: Linux-Command
 <pre>cd prometheus && ./prometheus --version</pre>
 **备份配置文件：**
 <pre>cp prometheus.yml prometheus.yml.bak</pre>
-**启动prometheus：**
-<pre>./prometheus --config.file="/usr/local/prometheus/prometheus.yml" &</pre>
-**查看是否启动成功：**
-<pre>
-[root@docker-test-b prometheus]# netstat -lntup | grep 9090
-tcp6       0      0 :::9090                 :::*                    LISTEN      79088/./prometheus 
-</pre>
-**移步到浏览器访问：**
-<pre>http://localhost:9090</pre>
 **修改配置文件：**
 <pre>
 # my global config
@@ -63,10 +54,20 @@ scrape_configs:
   - job_name: 'prometheus'
     # metrics_path defaults to '/metrics'
     # scheme defaults to 'http'.
-    static_configs:
+    # static_configs:
     - targets:['192.168.62.243:9090','192.168.62.243:9100','192.168.62.254:9100','192.168.62.254:8080','192.168.62.243:8080','192.168.62.253:8080']
     # 主要是修改这个地方，添加需要监控的项目
 </pre>
+**启动prometheus：**
+<pre>./prometheus --config.file="/usr/local/prometheus/prometheus.yml" &</pre>
+**查看是否启动成功：**
+<pre>
+[root@docker-test-b prometheus]# netstat -lntup | grep 9090
+tcp6       0      0 :::9090                 :::*                    LISTEN      79088/./prometheus 
+</pre>
+**移步到浏览器访问：**
+<pre>http://localhost:9090</pre>
+
 
 
 
