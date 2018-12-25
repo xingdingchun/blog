@@ -13,10 +13,12 @@ tags: Linux-Command
 
 ## Prometheust(普罗米修斯)安装
 
+
+## Prometheust安装步骤介绍
+
 **软件下载：**
 
 [Prometheust下载](https://github.com/prometheus/prometheus/releases "Prometheust下载")
-## Prometheust安装步骤介绍
 
 **下载软件：**
 <pre>wget https://github.com/prometheus/prometheus/releases/download/v2.6.0-rc.0/prometheus-2.6.0-rc.0.linux-amd64.tar.gz</pre>
@@ -68,16 +70,86 @@ tcp6       0      0 :::9090                 :::*                    LISTEN      
 **移步到浏览器访问：**
 <pre>http://localhost:9090</pre>
 
+## 系统监控模块下载安装
 
+**软件下载：**
 
+[node_exporter下载](https://github.com/prometheus/node_exporter/releases "node_exporter下载")
 
+**指定版本软件下载**
+<pre>
+wget https://github.com/prometheus/node_exporter/releases/download/v0.17.0/node_exporter-0.17.0.linux-amd64.tar.gz
+</pre>
 
+**解压软件**
+<pre>
+tar xf node_exporter-0.17.0.linux-amd64.tar.gz
+</pre>
 
+**修改软件名称**
+<pre>
+mv node_exporter-0.17.0.linux-amd64 node_exporter-0.17.0
+</pre>
 
+**软件移动到指定目录**
+<pre>
+mv node_exporter-0.17.0 /usr/local/
+</pre>
 
+**做软件软连接**
+<pre>
+ln -s /usr/local/node_exporter-0.17.0/ /usr/local/node_exporter
+</pre>
 
+**启动node_exporter**
+<pre>
+./node_exporter &
+</pre>
 
+**查看是否启动成功，端口为9100**
+<pre>
+[root@docker-test-b node_exporter]# netstat -lntup | grep 9100
+tcp6       0      0 :::9100                 :::*                    LISTEN      19097/./node_export
+</pre>
 
+## Grafana安装
 
+**官方文档地址**
+[Grafana](https://grafana.com/grafana/download "Grafana")
+
+**Grafana安装**
+
+安装方式有：二进制安装和RPM包安装，下面采用RPM包安装方式(CentOS)
+
+<pre>
+wget https://dl.grafana.com/oss/release/grafana-5.4.2-1.x86_64.rpm 
+sudo yum localinstall grafana-5.4.2-1.x86_64.rpm 
+</pre>
+
+**Grafana配置文件修改**
+
+    [server]
+    # Protocol (http, https, socket)
+    ;protocol = http
+
+    # The ip address to bind to, empty will bind to all interfaces
+    http_addr = 192.168.62.243     #配置主机地址
+
+    # The http port  to use
+    http_port = 3000    #指定访问端口
+
+    # The public facing domain name used to access grafana from a browser
+    domain = 192.168.62.243   #指定主机域
+
+**Granfana启动**
+
+<pre>
+systemctl enable grafana   #加入开机启动项
+systemctl start grafana    #启动
+systemctl status grafana   #查看状态
+</pre>
+
+**移步浏览器访问**
+<pre>http://localhost:3000</pre>
 
 
