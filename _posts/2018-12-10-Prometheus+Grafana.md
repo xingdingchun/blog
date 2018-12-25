@@ -33,29 +33,31 @@ tags: Linux-Command
 **备份配置文件：**
 <pre>cp prometheus.yml prometheus.yml.bak</pre>
 **修改配置文件：**
-# my global config
-  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
-  # scrape_timeout is set to the global default (10s).
-# Alertmanager configuration
-alerting:
-  alertmanagers:
-  - static_configs:
-    - targets:
-     #  - alertmanager:9093
-# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
-rule_files:
-  # - "first_rules.yml"
-  # - "second_rules.yml"
-# A scrape configuration containing exactly one endpoint to scrape:
-# Here it's Prometheus itself.
-scrape_configs:
-  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
-  - job_name: 'prometheus'
-    # metrics_path defaults to '/metrics'
-    # scheme defaults to 'http'.
-    static_configs:
-    - targets:['192.168.62.243:9090','192.168.62.243:9100','192.168.62.254:9100','192.168.62.254:8080','192.168.62.243:8080','192.168.62.253:8080']
-    # 主要是修改这个地方，添加需要监控的项目
+
+    # my global config
+       evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+      # scrape_timeout is set to the global default (10s).
+    # Alertmanager configuration
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets:
+         #  - alertmanager:9093
+    # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+    rule_files:
+      # - "first_rules.yml"
+      # - "second_rules.yml"
+    # A scrape configuration containing exactly one endpoint to scrape:
+    # Here it's Prometheus itself.
+    scrape_configs:
+      # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+      - job_name: 'prometheus'
+        # metrics_path defaults to '/metrics'
+        # scheme defaults to 'http'.
+        static_configs:
+        - targets:['192.168.62.243:9090','192.168.62.243:9100','192.168.62.254:9100','192.168.62.254:8080','192.168.62.243:8080','192.168.62.253:8080']
+        # 主要是修改这个地方，添加需要监控的项目
+
 **启动prometheus：**
 <pre>./prometheus --config.file="/usr/local/prometheus/prometheus.yml" &</pre>
 **查看是否启动成功：**
