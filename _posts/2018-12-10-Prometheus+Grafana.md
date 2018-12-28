@@ -73,12 +73,19 @@ tcp6       0      0 :::9090                 :::*                    LISTEN      
 **prometheus启动脚本**
 >启动脚本放入/etc/systemd/system/目录或者/usr/lib/systemd/system/目录下(两个目录没有实质上的区别，相当于软连接的形式)。
 >注意：这个地方需要创建prometheus运行的用户，并且要求数据目录和程序目录都是prometheus用户所有。
+
+
 创建用户
+
     user prometheus -M -s /sbin/nologin
+
 授权
+
     chown prometheus:prometheus /usr/local/prometheus/ -R
     chown prometheus:prometheus /data/prometheus/ -R
+
 配置文件详细信息
+
     [Unit]
     Description=Prometheus
     After=network.target
