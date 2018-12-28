@@ -70,6 +70,81 @@ tcp6       0      0 :::9090                 :::*                    LISTEN      
 **移步到浏览器访问：**
 <pre>http://localhost:9090</pre>
 
+**prometheus启动脚本**
+>启动脚本放入/etc/systemd/system/目录或者/usr/lib/systemd/system/目录下(两个目录没有实质上的区别，相当于软连接的形式)。
+>注意：这个地方需要创建prometheus运行的用户，并且要求数据目录和程序目录都是prometheus用户所有。
+创建用户
+    user prometheus -M -s /sbin/nologin
+授权
+    chown prometheus:prometheus /usr/local/prometheus/ -R
+    chown prometheus:prometheus /data/prometheus/ -R
+配置文件详细信息
+    [Unit]
+    Description=Prometheus
+    After=network.target
+
+    [Service]
+    Type=simple
+    Environment="GOMAXPROCS=4"
+    User=prometheus
+    Group=prometheus
+    ExecReload=/bin/kill -HUP $MAINPID
+    ExecStart=/usr/local/prometheus/prometheus \
+      --config.file=/usr/local/prometheus/prometheus.yml \
+      --storage.tsdb.path=/data/prometheus \
+      --storage.tsdb.retention=30d \
+      --web.console.libraries=/usr/local/prometheus/console_libraries \
+      --web.console.templates=/usr/local/prometheus/consoles \
+      --web.listen-address=0.0.0.0:9090
+    PrivateTmp=true
+    PrivateDevices=true
+    ProtectHome=true
+    NoNewPrivileges=true
+    LimitNOFILE=infinity
+    ReadWriteDirectories=/data/prometheus
+    ProtectSystem=full
+
+    SyslogIdentifier=prometheus
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+
+配置文件解释
+
+    [Unit]
+    Description=Prometheus
+    After=network.target
+
+    [Service]
+    Type=simple
+    Environment="GOMAXPROCS=4"
+    User=prometheus
+    Group=prometheus
+    ExecReload=/bin/kill -HUP $MAINPID
+    ExecStart=/usr/local/prometheus/prometheus \  # prometheus安装的路径
+      --config.file=/usr/local/prometheus/prometheus.yml \ # prometheus配置文件路径
+      --storage.tsdb.path=/data/prometheus \ # prometheus数据存储路径(注意需要有prometheus用户权限)
+      --storage.tsdb.retention=30d \ # 数据存储时间
+      --web.console.libraries=/usr/local/prometheus/console_libraries \
+      --web.console.templates=/usr/local/prometheus/consoles \
+      --web.listen-address=0.0.0.0:9090  # 配置prometheus服务监听的端口
+    PrivateTmp=true
+    PrivateDevices=true
+    ProtectHome=true
+    NoNewPrivileges=true
+    LimitNOFILE=infinity
+    ReadWriteDirectories=/data/prometheus
+    ProtectSystem=full
+
+
+    SyslogIdentifier=prometheus
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+
+
 ## 系统监控模块下载安装
 
 **软件下载：**
