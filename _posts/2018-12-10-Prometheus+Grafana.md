@@ -194,6 +194,28 @@ ln -s /usr/local/node_exporter-0.17.0/ /usr/local/node_exporter
 tcp6       0      0 :::9100                 :::*                    LISTEN      19097/./node_export
 </pre>
 
+**node_exporter启动脚本**
+>启动脚本放入/etc/systemd/system/目录或者/usr/lib/systemd/system/目录下(两个目录没有实质上的区别，相当于软连接的形式)。
+
+启动脚本详细信息
+
+    [Unit]
+    Description=Prometheus node exporter
+    After=network.target
+
+    [Service]
+    Type=simple
+    Environment="GOMAXPROCS=4"
+    User=nobody
+    Group=nobody
+    ExecReload=/bin/kill -HUP $MAINPID
+    ExecStart=/usr/local/node_exporter/node_exporter
+      --web.listen-address=":9100" # 指定端口，防止端口冲突，可以自定义
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
+
 ## Grafana安装
 
 **官方文档地址**
