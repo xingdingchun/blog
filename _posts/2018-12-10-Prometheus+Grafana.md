@@ -77,7 +77,7 @@ tcp6       0      0 :::9090                 :::*                    LISTEN      
 
 创建用户
 
-    user prometheus -M -s /sbin/nologin
+    useradd prometheus -M -s /sbin/nologin
 
 授权
 
@@ -151,6 +151,11 @@ tcp6       0      0 :::9090                 :::*                    LISTEN      
     [Install]
     WantedBy=multi-user.target
 
+**prometheus启动脚本**
+    systemctl daemon-reload     # 重载配置文件
+    systemctl start prometheus   # 启动prometheus
+    systemctl status prometheus   # 查看prometheus状态
+
 
 ## 系统监控模块下载安装
 
@@ -209,8 +214,8 @@ tcp6       0      0 :::9100                 :::*                    LISTEN      
     User=nobody
     Group=nobody
     ExecReload=/bin/kill -HUP $MAINPID
-    ExecStart=/usr/local/node_exporter/node_exporter
-      --web.listen-address=":9100" # 指定端口，防止端口冲突，可以自定义
+    ExecStart=/usr/local/node_exporter/node_exporter \
+      --web.listen-address=0.0.0.0:9100 # 指定端口，防止端口冲突，可以自定义
     Restart=always
 
     [Install]
